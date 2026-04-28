@@ -9,6 +9,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var db *sql.DB
@@ -64,12 +65,26 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+func checkPassword(hashedPassword, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	return err == nil
+}
+
 func ensureSuperAdmin(email, password, fullName string) error {
-	_, err := db.ExecContext(context.Background(),
+	hashed, err := hashPassword(password)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+	_, err = db.ExecContext(context.Background(),
 		`INSERT INTO users (email, password_hash, full_name, role)
-		VALUES ($1, crypt($2, gen_salt('bf')), $3, 'admin')
+		VALUES ($1, $2, $3, 'admin')
 		ON CONFLICT (email) DO UPDATE
-		SET password_hash = crypt($2, gen_salt('bf')), role = 'admin', full_name = COALESCE(NULLIF($3, ''), users.full_name), updated_at = NOW()`,
-		email, password, fullName)
+		SET password_hash = $2, role = 'admin', full_name = COALESCE(NULLIF($3, ''), users.full_name), updated_at = NOW()`,
+		email, hashed, fullName)
 	return err
 }

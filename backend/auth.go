@@ -97,12 +97,13 @@ func login(c *fiber.Ctx) error {
 	}
 
 	var user User
+	var passwordHash string
 	err := db.QueryRowContext(context.Background(),
-		"SELECT id, email, full_name, role FROM users WHERE email = $1 AND password_hash = crypt($2, password_hash)",
-		req.Email, req.Password,
-	).Scan(&user.ID, &user.Email, &user.FullName, &user.Role)
+		"SELECT id, email, password_hash, full_name, role FROM users WHERE email = $1",
+		req.Email,
+	).Scan(&user.ID, &user.Email, &passwordHash, &user.FullName, &user.Role)
 
-	if err != nil {
+	if err != nil || !checkPassword(passwordHash, req.Password) {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid credentials",
 		})
@@ -207,12 +208,16 @@ func registerCandidate(c *fiber.Ctx) error {
 	defer tx.Rollback()
 
 	// 1. Create User
+	hashed, hashErr := hashPassword(req.Password)
+	if hashErr != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create account"})
+	}
 	var userID string
 	err = tx.QueryRowContext(context.Background(),
 		`INSERT INTO users (email, password_hash, full_name, role) 
-		 VALUES ($1, crypt($2, gen_salt('bf')), $3, 'candidate') 
+		 VALUES ($1, $2, $3, 'candidate') 
 		 RETURNING id`,
-		req.Email, req.Password, req.FullName,
+		req.Email, hashed, req.FullName,
 	).Scan(&userID)
 	if err != nil {
 		if strings.Contains(err.Error(), "unique constraint") {

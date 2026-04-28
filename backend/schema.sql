@@ -1,13 +1,11 @@
 -- PostgreSQL Schema for KampusPro
 -- Run this SQL in your PostgreSQL database
 
--- Enable uuid extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- No extensions needed: using built-in gen_random_uuid() (PostgreSQL 13+)
 
 -- Users table (for authentication)
 CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(255),
@@ -18,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- User roles table
 CREATE TABLE IF NOT EXISTS user_roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     role VARCHAR(50) NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
@@ -26,7 +24,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
 
 -- Faculty admins (which faculty a faculty_admin can manage)
 CREATE TABLE IF NOT EXISTS faculty_admins (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     faculty_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
@@ -34,7 +32,7 @@ CREATE TABLE IF NOT EXISTS faculty_admins (
 
 -- Hero slides
 CREATE TABLE IF NOT EXISTS hero_slides (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
     eyebrow VARCHAR(255),
     description TEXT,
@@ -51,7 +49,7 @@ CREATE TABLE IF NOT EXISTS hero_slides (
 
 -- Faculties
 CREATE TABLE IF NOT EXISTS faculties (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(10) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
@@ -75,7 +73,7 @@ CREATE TABLE IF NOT EXISTS faculties (
 
 -- Faculty programs (study programs)
 CREATE TABLE IF NOT EXISTS faculty_programs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     faculty_id UUID REFERENCES faculties(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     level VARCHAR(50),
@@ -90,7 +88,7 @@ CREATE TABLE IF NOT EXISTS faculty_programs (
 
 -- Faculty lecturers
 CREATE TABLE IF NOT EXISTS faculty_lecturers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     faculty_id UUID REFERENCES faculties(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     position VARCHAR(255),
@@ -105,7 +103,7 @@ CREATE TABLE IF NOT EXISTS faculty_lecturers (
 
 -- News
 CREATE TABLE IF NOT EXISTS news (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
     excerpt TEXT,
     content TEXT,
@@ -120,7 +118,7 @@ CREATE TABLE IF NOT EXISTS news (
 
 -- Testimonials
 CREATE TABLE IF NOT EXISTS testimonials (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     role VARCHAR(255),
     quote TEXT NOT NULL,
@@ -134,7 +132,7 @@ CREATE TABLE IF NOT EXISTS testimonials (
 
 -- Blog posts
 CREATE TABLE IF NOT EXISTS blog_posts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
     excerpt TEXT,
@@ -154,7 +152,7 @@ CREATE TABLE IF NOT EXISTS blog_posts (
 
 -- Pages
 CREATE TABLE IF NOT EXISTS pages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
     subtitle VARCHAR(255),
     slug VARCHAR(255) UNIQUE NOT NULL,
@@ -170,7 +168,7 @@ CREATE TABLE IF NOT EXISTS pages (
 
 -- Contact messages
 CREATE TABLE IF NOT EXISTS contact_messages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(50),
@@ -193,7 +191,7 @@ CREATE TABLE IF NOT EXISTS site_settings (
 
 -- PMB Batches (Gelombang Pendaftaran)
 CREATE TABLE IF NOT EXISTS pmb_batches (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     academic_year VARCHAR(50) NOT NULL,
     start_date DATE,
@@ -206,7 +204,7 @@ CREATE TABLE IF NOT EXISTS pmb_batches (
 
 -- PMB Candidates (Pendaftar)
 CREATE TABLE IF NOT EXISTS pmb_candidates (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     batch_id UUID REFERENCES pmb_batches(id) ON DELETE RESTRICT,
     registration_number VARCHAR(100) UNIQUE,
@@ -223,7 +221,7 @@ CREATE TABLE IF NOT EXISTS pmb_candidates (
 
 -- PMB Documents (Berkas)
 CREATE TABLE IF NOT EXISTS pmb_documents (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     candidate_id UUID REFERENCES pmb_candidates(id) ON DELETE CASCADE,
     document_type VARCHAR(50) NOT NULL, -- KTP, KK, IJAZAH, PAS_FOTO, RAPOR, SERTIFIKAT
     file_url VARCHAR(500) NOT NULL,
@@ -235,7 +233,7 @@ CREATE TABLE IF NOT EXISTS pmb_documents (
 
 -- PMB Payments (Pembayaran)
 CREATE TABLE IF NOT EXISTS pmb_payments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     candidate_id UUID REFERENCES pmb_candidates(id) ON DELETE CASCADE,
     payment_type VARCHAR(50) NOT NULL, -- REGISTRATION, TUITION
     amount DECIMAL(12,2) NOT NULL,
@@ -257,11 +255,7 @@ CREATE INDEX IF NOT EXISTS idx_news_active ON news(active);
 CREATE INDEX IF NOT EXISTS idx_news_date ON news(date DESC);
 CREATE INDEX IF NOT EXISTS idx_testimonials_active ON testimonials(active);
 
--- Insert default admin user (password: mas@abd.com)
--- Note: In production, use proper password hashing
-INSERT INTO users (email, password_hash, full_name, role)
-VALUES ('mas@abd.com', crypt('mas@abd.com', gen_salt('bf')), 'Super Admin', 'admin')
-ON CONFLICT (email) DO UPDATE SET role='admin', full_name=COALESCE(NULLIF('Super Admin', ''), users.full_name), updated_at=NOW();
+-- Default admin user is created by the Go backend on startup (ensureSuperAdmin)
 
 -- Insert sample faculties
 INSERT INTO faculties (code, name, slug, description, vision, mission, accent, active, programs, sort_order)
