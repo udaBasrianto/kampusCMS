@@ -1,0 +1,278 @@
+-- PostgreSQL Schema for KampusPro
+-- Run this SQL in your PostgreSQL database
+
+-- Enable uuid extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Users table (for authentication)
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255),
+    role VARCHAR(50) DEFAULT 'user',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- User roles table
+CREATE TABLE IF NOT EXISTS user_roles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Faculty admins (which faculty a faculty_admin can manage)
+CREATE TABLE IF NOT EXISTS faculty_admins (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    faculty_id VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Hero slides
+CREATE TABLE IF NOT EXISTS hero_slides (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL,
+    eyebrow VARCHAR(255),
+    description TEXT,
+    image_url VARCHAR(500),
+    cta_primary_label VARCHAR(100),
+    cta_primary_href VARCHAR(255),
+    cta_secondary_label VARCHAR(100),
+    cta_secondary_href VARCHAR(255),
+    active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Faculties
+CREATE TABLE IF NOT EXISTS faculties (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(10) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    vision TEXT,
+    mission TEXT,
+    about_content TEXT,
+    hero_title VARCHAR(255),
+    hero_eyebrow VARCHAR(255),
+    hero_description TEXT,
+    cover_image_url VARCHAR(500),
+    accent VARCHAR(50) DEFAULT 'navy',
+    active BOOLEAN DEFAULT true,
+    programs INTEGER DEFAULT 0,
+    sort_order INTEGER DEFAULT 0,
+    facilities JSONB,
+    contact_info JSONB,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Faculty programs (study programs)
+CREATE TABLE IF NOT EXISTS faculty_programs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    faculty_id UUID REFERENCES faculties(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    level VARCHAR(50),
+    description TEXT,
+    accreditation VARCHAR(50),
+    duration_years INTEGER,
+    active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Faculty lecturers
+CREATE TABLE IF NOT EXISTS faculty_lecturers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    faculty_id UUID REFERENCES faculties(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    position VARCHAR(255),
+    education TEXT,
+    expertise TEXT,
+    photo_url VARCHAR(500),
+    active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- News
+CREATE TABLE IF NOT EXISTS news (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL,
+    excerpt TEXT,
+    content TEXT,
+    image_url VARCHAR(500),
+    category VARCHAR(100),
+    date DATE DEFAULT CURRENT_DATE,
+    featured BOOLEAN DEFAULT false,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Testimonials
+CREATE TABLE IF NOT EXISTS testimonials (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    role VARCHAR(255),
+    quote TEXT NOT NULL,
+    image_url VARCHAR(500),
+    year VARCHAR(50),
+    active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Blog posts
+CREATE TABLE IF NOT EXISTS blog_posts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    excerpt TEXT,
+    content TEXT,
+    cover_image_url VARCHAR(500),
+    author_name VARCHAR(255),
+    category VARCHAR(100),
+    tags TEXT[],
+    faculty_id UUID REFERENCES faculties(id) ON DELETE SET NULL,
+    status VARCHAR(50) DEFAULT 'draft',
+    published_at TIMESTAMP,
+    seo_title VARCHAR(255),
+    seo_description TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Pages
+CREATE TABLE IF NOT EXISTS pages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL,
+    subtitle VARCHAR(255),
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    content TEXT,
+    cover_image_url VARCHAR(500),
+    published BOOLEAN DEFAULT false,
+    sort_order INTEGER DEFAULT 0,
+    seo_title VARCHAR(255),
+    seo_description TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Contact messages
+CREATE TABLE IF NOT EXISTS contact_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50),
+    subject VARCHAR(255),
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Site settings
+CREATE TABLE IF NOT EXISTS site_settings (
+    key VARCHAR(255) PRIMARY KEY,
+    value JSONB,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ==========================================
+-- PMB (Penerimaan Mahasiswa Baru) / PPDB
+-- ==========================================
+
+-- PMB Batches (Gelombang Pendaftaran)
+CREATE TABLE IF NOT EXISTS pmb_batches (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    academic_year VARCHAR(50) NOT NULL,
+    start_date DATE,
+    end_date DATE,
+    registration_fee DECIMAL(12,2) DEFAULT 0,
+    is_active BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- PMB Candidates (Pendaftar)
+CREATE TABLE IF NOT EXISTS pmb_candidates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    batch_id UUID REFERENCES pmb_batches(id) ON DELETE RESTRICT,
+    registration_number VARCHAR(100) UNIQUE,
+    full_name VARCHAR(255) NOT NULL,
+    nisn VARCHAR(50),
+    phone_whatsapp VARCHAR(50),
+    school_origin VARCHAR(255),
+    first_choice_program_id UUID REFERENCES faculty_programs(id) ON DELETE SET NULL,
+    second_choice_program_id UUID REFERENCES faculty_programs(id) ON DELETE SET NULL,
+    status VARCHAR(50) DEFAULT 'DRAFT', -- DRAFT, WAITING_PAYMENT, PAYMENT_VERIFIED, DOCUMENT_VERIFIED, PASSED, FAILED, ENROLLED
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- PMB Documents (Berkas)
+CREATE TABLE IF NOT EXISTS pmb_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    candidate_id UUID REFERENCES pmb_candidates(id) ON DELETE CASCADE,
+    document_type VARCHAR(50) NOT NULL, -- KTP, KK, IJAZAH, PAS_FOTO, RAPOR, SERTIFIKAT
+    file_url VARCHAR(500) NOT NULL,
+    status VARCHAR(50) DEFAULT 'PENDING', -- PENDING, APPROVED, REJECTED
+    admin_notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- PMB Payments (Pembayaran)
+CREATE TABLE IF NOT EXISTS pmb_payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    candidate_id UUID REFERENCES pmb_candidates(id) ON DELETE CASCADE,
+    payment_type VARCHAR(50) NOT NULL, -- REGISTRATION, TUITION
+    amount DECIMAL(12,2) NOT NULL,
+    proof_image_url VARCHAR(500) NOT NULL,
+    status VARCHAR(50) DEFAULT 'PENDING', -- PENDING, VERIFIED, REJECTED
+    verified_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_faculties_slug ON faculties(slug);
+CREATE INDEX IF NOT EXISTS idx_faculties_active ON faculties(active);
+CREATE INDEX IF NOT EXISTS idx_blog_posts_slug ON blog_posts(slug);
+CREATE INDEX IF NOT EXISTS idx_blog_posts_status ON blog_posts(status);
+CREATE INDEX IF NOT EXISTS idx_pages_slug ON pages(slug);
+CREATE INDEX IF NOT EXISTS idx_pages_published ON pages(published);
+CREATE INDEX IF NOT EXISTS idx_news_active ON news(active);
+CREATE INDEX IF NOT EXISTS idx_news_date ON news(date DESC);
+CREATE INDEX IF NOT EXISTS idx_testimonials_active ON testimonials(active);
+
+-- Insert default admin user (password: mas@abd.com)
+-- Note: In production, use proper password hashing
+INSERT INTO users (email, password_hash, full_name, role)
+VALUES ('mas@abd.com', crypt('mas@abd.com', gen_salt('bf')), 'Super Admin', 'admin')
+ON CONFLICT (email) DO UPDATE SET role='admin', full_name=COALESCE(NULLIF('Super Admin', ''), users.full_name), updated_at=NOW();
+
+-- Insert sample faculties
+INSERT INTO faculties (code, name, slug, description, vision, mission, accent, active, programs, sort_order)
+VALUES 
+('FK', 'Fakultas Ilmu Kesehatan', 'ilmu-kesehatan', 'Mencetak tenaga kesehatan profesional berlandaskan ilmu dan nilai.', 'Menjadi fakultas kesehatan yang unggul dan bermanfaat', 'Mencetak tenaga kesehatan yang kompeten dan berakhlak', 'red', true, 3, 1),
+('FF', 'Fakultas Farmasi', 'farmasi', 'Mengembangkan inovasi farmasi untuk kesehatan masyarakat.', 'Menjadi pusat pendidikan farmasi yang inovatif', 'Menghasilkan lulusan farmasi yang profesional', 'blue', true, 4, 2),
+('FEB', 'Fakultas Ekonomi dan Bisnis', 'ekonomi-bisnis', 'Mengembangkan talenta bisnis, manajemen, dan digital yang dinamis.', 'Menjadi fakultas ekonomi dan bisnis unggul', 'Mencetak profesional di bidang ekonomi dan bisnis', 'green', true, 4, 3)
+ON CONFLICT (code) DO NOTHING;
+
+-- Insert sample hero slides
+INSERT INTO hero_slides (title, eyebrow, description, image_url, cta_primary_label, cta_primary_href, cta_secondary_label, cta_secondary_href, active, sort_order)
+VALUES 
+('Bersama Membentuk Masa Depan Bermakna', 'Universitas Perintis Indonesia', 'Pendidikan berkualitas untuk membangun insan berilmu, berakhlak, dan bermanfaat.', '/kampus-unpri.jpeg', 'Jelajahi UNPRI', '/halaman/tentang', 'Kenali Program Studi', '#program', true, 1)
+ON CONFLICT DO NOTHING;
