@@ -2,8 +2,6 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
-  HeadContent,
-  Scripts,
   useLocation,
 } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -13,8 +11,6 @@ import { useSiteSettings } from "@/hooks/useCampusData";
 import { useEffect, useState } from "react";
 import { ScrollToTop } from "@/components/site/ScrollToTop";
 import { ChatbotWidget } from "@/components/site/ChatbotWidget";
-
-import appCss from "../styles.css?url";
 
 interface RouterContext {
   queryClient: QueryClient;
@@ -43,55 +39,9 @@ function NotFoundComponent() {
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Universitas Perintis Indonesia" },
-      { name: "description", content: "UNPRI — Berilmu, Berakhlak, Bermanfaat" },
-      { property: "og:title", content: "Universitas Perintis Indonesia" },
-      { name: "twitter:title", content: "Universitas Perintis Indonesia" },
-      {
-        property: "og:description",
-        content: "UNPRI — Berilmu, Berakhlak, Bermanfaat",
-      },
-      {
-        name: "twitter:description",
-        content: "UNPRI — Berilmu, Berakhlak, Bermanfaat",
-      },
-      {
-        property: "og:image",
-        content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/e08810e7-afd7-4c91-8f8b-51ebc3fbb4e2",
-      },
-      {
-        name: "twitter:image",
-        content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/e08810e7-afd7-4c91-8f8b-51ebc3fbb4e2",
-      },
-      { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:type", content: "website" },
-    ],
-    links: [{ rel: "stylesheet", href: appCss }],
-  }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
 });
-
-function RootShell({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="id">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
