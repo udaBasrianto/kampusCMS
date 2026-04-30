@@ -86,8 +86,7 @@ func ensureSuperAdmin(email, password, fullName string) error {
 	_, err = db.ExecContext(context.Background(),
 		`INSERT INTO users (email, password_hash, full_name, role)
 		VALUES ($1, $2, $3, 'admin')
-		ON CONFLICT (email) DO UPDATE
-		SET password_hash = $2, role = 'admin', full_name = COALESCE(NULLIF($3, ''), users.full_name), updated_at = NOW()`,
+		ON CONFLICT (email) DO NOTHING`,
 		email, hashed, fullName)
 	return err
 }
