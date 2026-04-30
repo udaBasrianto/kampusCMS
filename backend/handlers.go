@@ -542,16 +542,22 @@ func createUser(c *fiber.Ctx) error {
 		req.Password = "admin123"
 	}
 
+	hashedPassword, err := hashPassword(req.Password)
+	if err != nil {
+		log.Println("createUser hash error:", err)
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to hash password"})
+	}
+
 	var id string
-	err := db.QueryRowContext(context.Background(),
+	err = db.QueryRowContext(context.Background(),
 		`INSERT INTO users (email, password_hash, full_name, role)
-		VALUES ($1, crypt($2, gen_salt('bf')), $3, $4)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (email) DO UPDATE SET role=$4, full_name=COALESCE(NULLIF($3, ''), users.full_name), updated_at=NOW()
 		RETURNING id`,
-		req.Email, req.Password, req.FullName, req.Role).Scan(&id)
+		req.Email, hashedPassword, req.FullName, req.Role).Scan(&id)
 	if err != nil {
 		log.Println("createUser error:", err)
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user"})
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user: " + err.Error()})
 	}
 
 	if req.Role == "faculty_admin" {
@@ -607,8 +613,12 @@ func updateUser(c *fiber.Ctx) error {
 			argId++
 		}
 		if req.Password != "" {
-			query += fmt.Sprintf(", password_hash=crypt($%d, gen_salt('bf'))", argId)
-			args = append(args, req.Password)
+			hashedPw, err := hashPassword(req.Password)
+			if err != nil {
+				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to hash password"})
+			}
+			query += fmt.Sprintf(", password_hash=$%d", argId)
+			args = append(args, hashedPw)
 			argId++
 		}
 
@@ -617,7 +627,7 @@ func updateUser(c *fiber.Ctx) error {
 
 		if _, err := db.ExecContext(context.Background(), query, args...); err != nil {
 			log.Println("updateUser basic details error:", err)
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user details"})
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user details: " + err.Error()})
 		}
 	}
 	
