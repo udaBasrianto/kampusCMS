@@ -44,7 +44,17 @@ function Page() {
     },
   });
 
-  const [tab, setTab] = useState<"super" | "faculty" | "pending">("pending");
+  // Regular Active Users
+  const activeUsersQuery = useQuery({
+    queryKey: ["active_users"],
+    queryFn: async () => {
+      const { data, error } = await apiClient.getUsers();
+      if (error) throw new Error(error);
+      return (data as any[])?.filter((u: any) => u.role === "user" && u.status === "active") ?? [];
+    },
+  });
+
+  const [tab, setTab] = useState<"super" | "faculty" | "pending" | "user">("pending");
 
   // Form: add super admin
   const [superId, setSuperId] = useState("");
@@ -155,34 +165,40 @@ function Page() {
     qc.invalidateQueries({ queryKey: ["pending_users"] });
   };
 
-  const fAdmins = facultyAdminsQuery.data ?? [];
+      const fAdmins = facultyAdminsQuery.data ?? [];
   const pendingUsers = pendingUsersQuery.data ?? [];
+  const activeUsers = activeUsersQuery.data ?? [];
 
   return (
     <div>
       <h1 className="font-display text-3xl font-bold">Admin & Users</h1>
       <p className="mt-1 text-muted-foreground">
-        Kelola Super Admin (akses penuh) dan Faculty Admin (akses terbatas ke fakultas yang
-        ditugaskan).
+        Kelola Pendaftar, User Biasa, Faculty Admin, dan Super Admin.
       </p>
 
       {/* Tabs */}
-      <div className="mt-6 inline-flex rounded-lg border border-border bg-card p-1">
+      <div className="mt-6 flex flex-wrap gap-2 rounded-lg border border-border bg-card p-1">
         <button
           onClick={() => setTab("pending")}
-          className={`rounded-md px-4 py-1.5 text-sm font-semibold ${tab === "pending" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+          className={`rounded-md px-4 py-1.5 text-sm font-semibold ${tab === "pending" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
         >
-          Pendaftar Baru ({pendingUsersQuery.data?.length ?? 0})
+          Pendaftar Baru ({pendingUsers.length})
+        </button>
+        <button
+          onClick={() => setTab("user")}
+          className={`rounded-md px-4 py-1.5 text-sm font-semibold ${tab === "user" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+        >
+          User Aktif ({activeUsers.length})
         </button>
         <button
           onClick={() => setTab("faculty")}
-          className={`rounded-md px-4 py-1.5 text-sm font-semibold ${tab === "faculty" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+          className={`rounded-md px-4 py-1.5 text-sm font-semibold ${tab === "faculty" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
         >
           Faculty Admin ({fAdmins.length})
         </button>
         <button
           onClick={() => setTab("super")}
-          className={`rounded-md px-4 py-1.5 text-sm font-semibold ${tab === "super" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+          className={`rounded-md px-4 py-1.5 text-sm font-semibold ${tab === "super" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
         >
           Super Admin ({superAdmins.length})
         </button>
@@ -225,6 +241,47 @@ function Page() {
                   Tolak
                 </button>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "user" && (
+        <div className="mt-6 grid gap-3">
+          <h2 className="font-display text-lg font-semibold">User Biasa (Aktif)</h2>
+          {activeUsersQuery.isLoading && <p className="text-sm text-muted-foreground">Memuat...</p>}
+          {activeUsers.length === 0 && !activeUsersQuery.isLoading && (
+            <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
+              Belum ada user biasa yang aktif.
+            </div>
+          )}
+          {activeUsers.map((u: any) => (
+            <div key={u.id} className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Shield className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-display font-semibold truncate">{u.full_name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Bergabung pada: {new Date(u.created_at).toLocaleString("id-ID")}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!confirm("Hapus user ini?")) return;
+                  const { error } = await apiClient.deleteUser(u.id);
+                  if (error) return toast.error("Gagal menghapus user");
+                  toast.success("User dihapus");
+                  qc.invalidateQueries({ queryKey: ["active_users"] });
+                }}
+                className="rounded-lg p-2 text-destructive hover:bg-destructive/10"
+                title="Hapus User"
+              >
+                <ShieldOff className="h-4 w-4" />
+              </button>
             </div>
           ))}
         </div>

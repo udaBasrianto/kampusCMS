@@ -127,7 +127,7 @@ function DashboardLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pb-20 lg:pb-0">
         {/* Mobile header */}
         <div className="lg:hidden flex items-center justify-between bg-primary text-primary-foreground p-4">
           <span className="font-display font-bold">KampusPro</span>
@@ -142,23 +142,27 @@ function DashboardLayout() {
           </button>
         </div>
 
-        {/* Mobile nav tabs — horizontal scroll */}
-        <div className="lg:hidden flex overflow-x-auto gap-2 p-3 bg-card border-b border-border">
-          {allNav.map((n) => (
-            <Link
-              key={n.to}
-              to={n.to}
-              className={cn(
-                "flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium",
-                isActive(n.to, n.exact)
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground",
-              )}
-            >
-              <n.icon className="h-3.5 w-3.5" /> {n.label}
-            </Link>
-          ))}
-        </div>
+        {/* Mobile Bottom Navbar */}
+        <nav className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-card border-t border-border flex items-center px-2 py-2 pb-safe shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.1)] overflow-x-auto overflow-y-hidden hide-scrollbar">
+          <div className="flex justify-around w-full min-w-max gap-2">
+          {allNav.map((n) => {
+            const active = isActive(n.to, n.exact);
+            return (
+              <Link
+                key={n.to}
+                to={n.to}
+                className={cn(
+                  "flex flex-col items-center gap-1 min-w-[64px] px-2 py-2 rounded-xl transition-colors",
+                  active ? "text-primary" : "text-muted-foreground hover:bg-muted/50"
+                )}
+              >
+                <n.icon className={cn("h-5 w-5", active && "fill-primary/20")} />
+                <span className="text-[10px] font-semibold whitespace-nowrap">{n.label}</span>
+              </Link>
+            );
+          })}
+          </div>
+        </nav>
 
         {/* Page content — same padding as admin */}
         <div className="p-6 lg:p-10">
