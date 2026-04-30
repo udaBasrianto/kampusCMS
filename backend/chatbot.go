@@ -174,6 +174,10 @@ func callOpenAICompatible(settings ChatbotSettings, messages []ChatMessage) (str
 	if apiURL == "" {
 		apiURL = "https://ai.sumopod.com/v1/chat/completions"
 	}
+	// Normalize: jika hanya base URL (misal /v1), tambahkan /chat/completions
+	if !strings.HasSuffix(apiURL, "/chat/completions") {
+		apiURL = strings.TrimSuffix(apiURL, "/") + "/chat/completions"
+	}
 	model := settings.Model
 	if model == "" {
 		model = "gpt-5-nano"
