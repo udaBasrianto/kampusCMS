@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, X, Upload } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Upload, Copy } from "lucide-react";
 import { apiClient } from "@/integrations/api/client";
 import { uploadImage } from "@/lib/upload";
 import { cn } from "@/lib/utils";
@@ -107,6 +107,18 @@ export function CrudTable<T extends AnyRow>({
     qc.invalidateQueries({ queryKey: [queryKey] });
   };
 
+  const duplicate = (row: T) => {
+    // Buat salinan tanpa ID dan timestamps agar disimpan sebagai data baru
+    const { id, created_at, updated_at, ...rest } = row as any;
+    void id; void created_at; void updated_at;
+    // Tambahkan prefix "Salinan" pada field title/name jika ada
+    const copy: any = { ...rest };
+    if (copy.title) copy.title = `Salinan - ${copy.title}`;
+    else if (copy.name) copy.name = `Salinan - ${copy.name}`;
+    setEditing(copy as Partial<T>);
+    toast.info("Data disalin. Periksa dan klik Simpan untuk menyimpan duplikat.");
+  };
+
   const handleUpload = async (field: string, file: File) => {
     setUploadingField(field);
     try {
@@ -157,13 +169,23 @@ export function CrudTable<T extends AnyRow>({
                   onClick={() => setEditing(row)}
                   className="rounded-lg p-2 text-foreground hover:bg-muted"
                   aria-label="Edit"
+                  title="Edit"
                 >
                   <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => duplicate(row)}
+                  className="rounded-lg p-2 text-blue-500 hover:bg-blue-500/10"
+                  aria-label="Duplikat"
+                  title="Duplikat / Clone"
+                >
+                  <Copy className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => remove(row.id)}
                   className="rounded-lg p-2 text-destructive hover:bg-destructive/10"
                   aria-label="Hapus"
+                  title="Hapus"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
