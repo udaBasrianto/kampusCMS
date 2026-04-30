@@ -25,7 +25,13 @@ function AuthPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user) navigate({ to: "/admin" });
+    if (user) {
+      if (user.role === "admin" || user.role === "faculty_admin") {
+        navigate({ to: "/admin" });
+      } else {
+        navigate({ to: "/dashboard" });
+      }
+    }
   }, [user, navigate]);
 
   const submit = async (e: React.FormEvent) => {
@@ -42,7 +48,11 @@ function AuthPage() {
       } else {
         const data = await login(parsed.data.email, parsed.data.password);
         toast.success("Login berhasil");
-        navigate({ to: "/admin" });
+        if (data.user.role === "admin" || data.user.role === "faculty_admin") {
+          navigate({ to: "/admin" });
+        } else {
+          navigate({ to: "/dashboard" });
+        }
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Terjadi kesalahan");

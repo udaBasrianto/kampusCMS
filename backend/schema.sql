@@ -185,6 +185,23 @@ CREATE TABLE IF NOT EXISTS site_settings (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Campus Events
+CREATE TABLE IF NOT EXISTS campus_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    image_url VARCHAR(500),
+    event_date DATE NOT NULL,
+    start_time TIME DEFAULT '00:00',
+    end_time TIME DEFAULT '23:59',
+    location VARCHAR(255),
+    map_coordinates VARCHAR(100),
+    active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
 -- ==========================================
 -- PMB (Penerimaan Mahasiswa Baru) / PPDB
 -- ==========================================

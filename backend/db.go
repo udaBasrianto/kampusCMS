@@ -56,6 +56,9 @@ func initDB() {
 	if err != nil {
 		log.Fatal("Failed to create site_settings table: ", err)
 	}
+
+	// Auto-migrate column map_coordinates for campus_events
+	_, _ = db.ExecContext(context.Background(), `ALTER TABLE campus_events ADD COLUMN IF NOT EXISTS map_coordinates VARCHAR(100)`)
 }
 
 func getEnv(key, defaultValue string) string {

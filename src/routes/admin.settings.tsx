@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building2, BarChart3, Megaphone, LayoutTemplate, Phone } from "lucide-react";
+import { Building2, BarChart3, Megaphone, LayoutTemplate, Phone, Sparkles } from "lucide-react";
 import { CampusInfoForm } from "@/components/admin/CampusInfoForm";
 import { HeaderForm } from "@/components/admin/HeaderForm";
 import { StatsSettingsForm } from "@/components/admin/StatsSettingsForm";
@@ -9,6 +9,7 @@ import { FooterForm } from "@/components/admin/FooterForm";
 import { ContactForm } from "@/components/admin/ContactForm";
 import { ThemeSettingsForm } from "@/components/admin/ThemeSettingsForm";
 import { ChatbotForm } from "@/components/admin/ChatbotForm";
+import { ParticlesForm } from "@/components/admin/ParticlesForm";
 import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/admin/settings")({ component: Page });
 const tabs = [
   { key: "campus_info", label: "Info Kampus", icon: Building2 },
   { key: "header", label: "Header", icon: LayoutTemplate },
+  { key: "particles", label: "Efek Partikel", icon: Sparkles },
   { key: "stats", label: "Statistik", icon: BarChart3 },
   { key: "cta_banner", label: "CTA Banner", icon: Megaphone },
   { key: "footer", label: "Footer", icon: LayoutTemplate },
@@ -53,6 +55,7 @@ function Page() {
 
       {active === "campus_info" && <CampusInfoForm />}
       {active === "header" && <HeaderForm />}
+      {active === "particles" && <ParticlesForm />}
       {active === "stats" && <StatsSettingsForm />}
       {active === "cta_banner" && <CtaBannerForm />}
       {active === "footer" && <FooterForm />}

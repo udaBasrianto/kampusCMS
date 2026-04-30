@@ -9,11 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PmbIndexRouteImport } from './routes/pmb.index'
 import { Route as FakultasIndexRouteImport } from './routes/fakultas/index'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as BlogIndexRouteImport } from './routes/blog/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as PmbLoginRouteImport } from './routes/pmb.login'
@@ -22,6 +24,13 @@ import { Route as PmbDashboardRouteImport } from './routes/pmb.dashboard'
 import { Route as PmbDaftarRouteImport } from './routes/pmb.daftar'
 import { Route as HalamanSlugRouteImport } from './routes/halaman.$slug'
 import { Route as FakultasSlugRouteImport } from './routes/fakultas/$slug'
+import { Route as EventsIdRouteImport } from './routes/events.$id'
+import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
+import { Route as DashboardProfileRouteImport } from './routes/dashboard.profile'
+import { Route as DashboardNewsRouteImport } from './routes/dashboard.news'
+import { Route as DashboardEventsRouteImport } from './routes/dashboard.events'
+import { Route as DashboardChatRouteImport } from './routes/dashboard.chat'
+import { Route as DashboardAcademicRouteImport } from './routes/dashboard.academic'
 import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTestimonialsRouteImport } from './routes/admin.testimonials'
@@ -35,8 +44,14 @@ import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminLecturersRouteImport } from './routes/admin.lecturers'
 import { Route as AdminHeroRouteImport } from './routes/admin.hero'
 import { Route as AdminFacultiesRouteImport } from './routes/admin.faculties'
+import { Route as AdminEventsRouteImport } from './routes/admin.events'
 import { Route as AdminBlogRouteImport } from './routes/admin.blog'
 
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -61,6 +76,11 @@ const FakultasIndexRoute = FakultasIndexRouteImport.update({
   id: '/fakultas/',
   path: '/fakultas/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
 } as any)
 const BlogIndexRoute = BlogIndexRouteImport.update({
   id: '/blog/',
@@ -101,6 +121,41 @@ const FakultasSlugRoute = FakultasSlugRouteImport.update({
   id: '/fakultas/$slug',
   path: '/fakultas/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const EventsIdRoute = EventsIdRouteImport.update({
+  id: '/events/$id',
+  path: '/events/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardProfileRoute = DashboardProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardNewsRoute = DashboardNewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardEventsRoute = DashboardEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardChatRoute = DashboardChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAcademicRoute = DashboardAcademicRouteImport.update({
+  id: '/academic',
+  path: '/academic',
+  getParentRoute: () => DashboardRoute,
 } as any)
 const BlogSlugRoute = BlogSlugRouteImport.update({
   id: '/blog/$slug',
@@ -167,6 +222,11 @@ const AdminFacultiesRoute = AdminFacultiesRouteImport.update({
   path: '/faculties',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminEventsRoute = AdminEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminBlogRoute = AdminBlogRouteImport.update({
   id: '/blog',
   path: '/blog',
@@ -177,7 +237,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/admin/blog': typeof AdminBlogRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/faculties': typeof AdminFacultiesRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/lecturers': typeof AdminLecturersRoute
@@ -191,6 +253,13 @@ export interface FileRoutesByFullPath {
   '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/users': typeof AdminUsersRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/dashboard/academic': typeof DashboardAcademicRoute
+  '/dashboard/chat': typeof DashboardChatRoute
+  '/dashboard/events': typeof DashboardEventsRoute
+  '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/profile': typeof DashboardProfileRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/events/$id': typeof EventsIdRoute
   '/fakultas/$slug': typeof FakultasSlugRoute
   '/halaman/$slug': typeof HalamanSlugRoute
   '/pmb/daftar': typeof PmbDaftarRoute
@@ -199,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/pmb/login': typeof PmbLoginRoute
   '/admin/': typeof AdminIndexRoute
   '/blog/': typeof BlogIndexRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/fakultas/': typeof FakultasIndexRoute
   '/pmb/': typeof PmbIndexRoute
 }
@@ -206,6 +276,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin/blog': typeof AdminBlogRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/faculties': typeof AdminFacultiesRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/lecturers': typeof AdminLecturersRoute
@@ -219,6 +290,13 @@ export interface FileRoutesByTo {
   '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/users': typeof AdminUsersRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/dashboard/academic': typeof DashboardAcademicRoute
+  '/dashboard/chat': typeof DashboardChatRoute
+  '/dashboard/events': typeof DashboardEventsRoute
+  '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/profile': typeof DashboardProfileRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/events/$id': typeof EventsIdRoute
   '/fakultas/$slug': typeof FakultasSlugRoute
   '/halaman/$slug': typeof HalamanSlugRoute
   '/pmb/daftar': typeof PmbDaftarRoute
@@ -227,6 +305,7 @@ export interface FileRoutesByTo {
   '/pmb/login': typeof PmbLoginRoute
   '/admin': typeof AdminIndexRoute
   '/blog': typeof BlogIndexRoute
+  '/dashboard': typeof DashboardIndexRoute
   '/fakultas': typeof FakultasIndexRoute
   '/pmb': typeof PmbIndexRoute
 }
@@ -235,7 +314,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/admin/blog': typeof AdminBlogRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/faculties': typeof AdminFacultiesRoute
   '/admin/hero': typeof AdminHeroRoute
   '/admin/lecturers': typeof AdminLecturersRoute
@@ -249,6 +330,13 @@ export interface FileRoutesById {
   '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/users': typeof AdminUsersRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/dashboard/academic': typeof DashboardAcademicRoute
+  '/dashboard/chat': typeof DashboardChatRoute
+  '/dashboard/events': typeof DashboardEventsRoute
+  '/dashboard/news': typeof DashboardNewsRoute
+  '/dashboard/profile': typeof DashboardProfileRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/events/$id': typeof EventsIdRoute
   '/fakultas/$slug': typeof FakultasSlugRoute
   '/halaman/$slug': typeof HalamanSlugRoute
   '/pmb/daftar': typeof PmbDaftarRoute
@@ -257,6 +345,7 @@ export interface FileRoutesById {
   '/pmb/login': typeof PmbLoginRoute
   '/admin/': typeof AdminIndexRoute
   '/blog/': typeof BlogIndexRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/fakultas/': typeof FakultasIndexRoute
   '/pmb/': typeof PmbIndexRoute
 }
@@ -266,7 +355,9 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/dashboard'
     | '/admin/blog'
+    | '/admin/events'
     | '/admin/faculties'
     | '/admin/hero'
     | '/admin/lecturers'
@@ -280,6 +371,13 @@ export interface FileRouteTypes {
     | '/admin/testimonials'
     | '/admin/users'
     | '/blog/$slug'
+    | '/dashboard/academic'
+    | '/dashboard/chat'
+    | '/dashboard/events'
+    | '/dashboard/news'
+    | '/dashboard/profile'
+    | '/dashboard/settings'
+    | '/events/$id'
     | '/fakultas/$slug'
     | '/halaman/$slug'
     | '/pmb/daftar'
@@ -288,6 +386,7 @@ export interface FileRouteTypes {
     | '/pmb/login'
     | '/admin/'
     | '/blog/'
+    | '/dashboard/'
     | '/fakultas/'
     | '/pmb/'
   fileRoutesByTo: FileRoutesByTo
@@ -295,6 +394,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin/blog'
+    | '/admin/events'
     | '/admin/faculties'
     | '/admin/hero'
     | '/admin/lecturers'
@@ -308,6 +408,13 @@ export interface FileRouteTypes {
     | '/admin/testimonials'
     | '/admin/users'
     | '/blog/$slug'
+    | '/dashboard/academic'
+    | '/dashboard/chat'
+    | '/dashboard/events'
+    | '/dashboard/news'
+    | '/dashboard/profile'
+    | '/dashboard/settings'
+    | '/events/$id'
     | '/fakultas/$slug'
     | '/halaman/$slug'
     | '/pmb/daftar'
@@ -316,6 +423,7 @@ export interface FileRouteTypes {
     | '/pmb/login'
     | '/admin'
     | '/blog'
+    | '/dashboard'
     | '/fakultas'
     | '/pmb'
   id:
@@ -323,7 +431,9 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/dashboard'
     | '/admin/blog'
+    | '/admin/events'
     | '/admin/faculties'
     | '/admin/hero'
     | '/admin/lecturers'
@@ -337,6 +447,13 @@ export interface FileRouteTypes {
     | '/admin/testimonials'
     | '/admin/users'
     | '/blog/$slug'
+    | '/dashboard/academic'
+    | '/dashboard/chat'
+    | '/dashboard/events'
+    | '/dashboard/news'
+    | '/dashboard/profile'
+    | '/dashboard/settings'
+    | '/events/$id'
     | '/fakultas/$slug'
     | '/halaman/$slug'
     | '/pmb/daftar'
@@ -345,6 +462,7 @@ export interface FileRouteTypes {
     | '/pmb/login'
     | '/admin/'
     | '/blog/'
+    | '/dashboard/'
     | '/fakultas/'
     | '/pmb/'
   fileRoutesById: FileRoutesById
@@ -353,7 +471,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
   BlogSlugRoute: typeof BlogSlugRoute
+  EventsIdRoute: typeof EventsIdRoute
   FakultasSlugRoute: typeof FakultasSlugRoute
   HalamanSlugRoute: typeof HalamanSlugRoute
   PmbDaftarRoute: typeof PmbDaftarRoute
@@ -367,6 +487,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -401,6 +528,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/fakultas/'
       preLoaderRoute: typeof FakultasIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
     }
     '/blog/': {
       id: '/blog/'
@@ -457,6 +591,55 @@ declare module '@tanstack/react-router' {
       fullPath: '/fakultas/$slug'
       preLoaderRoute: typeof FakultasSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/events/$id': {
+      id: '/events/$id'
+      path: '/events/$id'
+      fullPath: '/events/$id'
+      preLoaderRoute: typeof EventsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/settings': {
+      id: '/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/profile': {
+      id: '/dashboard/profile'
+      path: '/profile'
+      fullPath: '/dashboard/profile'
+      preLoaderRoute: typeof DashboardProfileRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/news': {
+      id: '/dashboard/news'
+      path: '/news'
+      fullPath: '/dashboard/news'
+      preLoaderRoute: typeof DashboardNewsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/events': {
+      id: '/dashboard/events'
+      path: '/events'
+      fullPath: '/dashboard/events'
+      preLoaderRoute: typeof DashboardEventsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/chat': {
+      id: '/dashboard/chat'
+      path: '/chat'
+      fullPath: '/dashboard/chat'
+      preLoaderRoute: typeof DashboardChatRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/academic': {
+      id: '/dashboard/academic'
+      path: '/academic'
+      fullPath: '/dashboard/academic'
+      preLoaderRoute: typeof DashboardAcademicRouteImport
+      parentRoute: typeof DashboardRoute
     }
     '/blog/$slug': {
       id: '/blog/$slug'
@@ -549,6 +732,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFacultiesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/events': {
+      id: '/admin/events'
+      path: '/events'
+      fullPath: '/admin/events'
+      preLoaderRoute: typeof AdminEventsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/blog': {
       id: '/admin/blog'
       path: '/blog'
@@ -561,6 +751,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminBlogRoute: typeof AdminBlogRoute
+  AdminEventsRoute: typeof AdminEventsRoute
   AdminFacultiesRoute: typeof AdminFacultiesRoute
   AdminHeroRoute: typeof AdminHeroRoute
   AdminLecturersRoute: typeof AdminLecturersRoute
@@ -578,6 +769,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminBlogRoute: AdminBlogRoute,
+  AdminEventsRoute: AdminEventsRoute,
   AdminFacultiesRoute: AdminFacultiesRoute,
   AdminHeroRoute: AdminHeroRoute,
   AdminLecturersRoute: AdminLecturersRoute,
@@ -595,11 +787,37 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface DashboardRouteChildren {
+  DashboardAcademicRoute: typeof DashboardAcademicRoute
+  DashboardChatRoute: typeof DashboardChatRoute
+  DashboardEventsRoute: typeof DashboardEventsRoute
+  DashboardNewsRoute: typeof DashboardNewsRoute
+  DashboardProfileRoute: typeof DashboardProfileRoute
+  DashboardSettingsRoute: typeof DashboardSettingsRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAcademicRoute: DashboardAcademicRoute,
+  DashboardChatRoute: DashboardChatRoute,
+  DashboardEventsRoute: DashboardEventsRoute,
+  DashboardNewsRoute: DashboardNewsRoute,
+  DashboardProfileRoute: DashboardProfileRoute,
+  DashboardSettingsRoute: DashboardSettingsRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
+  DashboardRoute: DashboardRouteWithChildren,
   BlogSlugRoute: BlogSlugRoute,
+  EventsIdRoute: EventsIdRoute,
   FakultasSlugRoute: FakultasSlugRoute,
   HalamanSlugRoute: HalamanSlugRoute,
   PmbDaftarRoute: PmbDaftarRoute,

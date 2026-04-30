@@ -400,6 +400,62 @@ func getDashboardStats(c *fiber.Ctx) error {
 	})
 }
 
+// Campus Events (public)
+func getEvents(c *fiber.Ctx) error {
+	rows, err := db.QueryContext(context.Background(),
+		`SELECT id, title, COALESCE(description,''), COALESCE(image_url,''), event_date,
+		 COALESCE(start_time::text,'00:00'), COALESCE(end_time::text,'23:59'),
+		 COALESCE(location,''), COALESCE(map_coordinates,''), active, sort_order, created_at, updated_at
+		 FROM campus_events WHERE active = true ORDER BY event_date ASC, sort_order`)
+	if err != nil {
+		log.Println("getEvents query error:", err)
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch events"})
+	}
+	defer rows.Close()
+
+	events := []map[string]interface{}{}
+	for rows.Next() {
+		var id, title, desc, imageURL, eventDate, startTime, endTime, location, mapCoords, createdAt, updatedAt string
+		var active bool
+		var sortOrder int
+		if err := rows.Scan(&id, &title, &desc, &imageURL, &eventDate, &startTime, &endTime, &location, &mapCoords, &active, &sortOrder, &createdAt, &updatedAt); err != nil {
+			log.Println("getEvents scan error:", err)
+			continue
+		}
+		events = append(events, map[string]interface{}{
+			"id": id, "title": title, "description": desc, "image_url": imageURL,
+			"event_date": eventDate, "start_time": startTime, "end_time": endTime,
+			"location": location, "map_coordinates": mapCoords, "active": active, "sort_order": sortOrder,
+			"created_at": createdAt, "updated_at": updatedAt,
+		})
+	}
+	return c.JSON(events)
+}
+
+func getEventByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var evID, title, desc, imageURL, eventDate, startTime, endTime, location, mapCoords, createdAt, updatedAt string
+	var active bool
+	var sortOrder int
+	err := db.QueryRowContext(context.Background(),
+		`SELECT id, title, COALESCE(description,''), COALESCE(image_url,''), event_date,
+		 COALESCE(start_time::text,'00:00'), COALESCE(end_time::text,'23:59'),
+		 COALESCE(location,''), COALESCE(map_coordinates,''), active, sort_order, created_at, updated_at
+		 FROM campus_events WHERE id=$1`, id,
+	).Scan(&evID, &title, &desc, &imageURL, &eventDate, &startTime, &endTime, &location, &mapCoords, &active, &sortOrder, &createdAt, &updatedAt)
+
+	if err != nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Event not found"})
+	}
+
+	return c.JSON(fiber.Map{
+		"id": evID, "title": title, "description": desc, "image_url": imageURL,
+		"event_date": eventDate, "start_time": startTime, "end_time": endTime,
+		"location": location, "map_coordinates": mapCoords, "active": active, "sort_order": sortOrder,
+		"created_at": createdAt, "updated_at": updatedAt,
+	})
+}
+
 // Placeholder handlers for remaining routes
 func createNews(c *fiber.Ctx) error        { return c.JSON(fiber.Map{"message": "Not implemented"}) }
 func updateNews(c *fiber.Ctx) error        { return c.JSON(fiber.Map{"message": "Not implemented"}) }

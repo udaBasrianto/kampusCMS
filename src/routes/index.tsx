@@ -4,6 +4,7 @@ import { HeroSlider } from "@/components/site/HeroSlider";
 import { StatsBar } from "@/components/site/StatsBar";
 import { Faculties } from "@/components/site/Faculties";
 import { News } from "@/components/site/News";
+import { CampusEvents } from "@/components/site/CampusEvents";
 import { Testimonials } from "@/components/site/Testimonials";
 import { CtaBanner } from "@/components/site/CtaBanner";
 import { Footer } from "@/components/site/Footer";
@@ -30,6 +31,7 @@ function Index() {
         <StatsBar />
         <Faculties />
         <News />
+        <CampusEvents />
         <Testimonials />
         <CtaBanner />
       </main>

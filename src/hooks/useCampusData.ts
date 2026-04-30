@@ -115,3 +115,24 @@ export const useAnalytics = () =>
       return data || [];
     },
   });
+
+export const useEvents = () =>
+  useQuery({
+    queryKey: ["campus_events"],
+    queryFn: async () => {
+      const { data, error } = await apiClient.getEvents();
+      if (error) throw new Error(error);
+      return data;
+    },
+  });
+
+export const useEvent = (id: string) =>
+  useQuery({
+    queryKey: ["campus_event", id],
+    queryFn: async () => {
+      const { data, error } = await apiClient.getEventByID(id);
+      if (error) throw new Error(error);
+      return data;
+    },
+    enabled: !!id,
+  });

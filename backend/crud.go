@@ -61,6 +61,10 @@ var tableColumns = map[string]map[string]bool{
 		"cover_image_url": true, "published": true, "sort_order": true,
 		"seo_title": true, "seo_description": true,
 	},
+	"campus_events": {
+		"title": true, "description": true, "image_url": true, "event_date": true,
+		"start_time": true, "end_time": true, "location": true, "map_coordinates": true, "active": true, "sort_order": true,
+	},
 }
 
 func normalizeValue(column string, value interface{}) (interface{}, error) {

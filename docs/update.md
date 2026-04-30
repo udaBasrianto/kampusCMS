@@ -1,372 +1,333 @@
-# 📋 Update Log — 27-28 April 2026
+# 📋 Update Log — 30 April 2026
 
-Ringkasan seluruh perubahan yang dilakukan pada codebase KampusPro.
-
----
-
-## 🔒 1. Backend Security & Stability
-
-### JWT Security
-- Implementasi `initJWTSecret()` dengan validasi minimum 16 karakter
-- Verifikasi signing method (HMAC) di auth middleware untuk cegah algorithm confusion
-- Validasi input login (email + password wajib diisi)
-
-### Error Handling
-- **11 `rows.Scan()`** yang diabaikan → sekarang semua di-check + di-log
-- **~25 `err.Error()`** di response → diganti pesan generic (cegah info leaking)
-- Error di-log server-side via `log.Println()`
-
-### Database
-- Connection pooling: `MaxOpenConns(25)`, `MaxIdleConns(5)`, `ConnMaxLifetime(5m)`
-- Health endpoint (`/api/v1/health`) sekarang ping DB, return 503 jika mati
-
-### Upload Security
-- Whitelist ekstensi: `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.svg`, `.pdf`, `.ico`
-- Limit ukuran file: **10MB**
-
-### Server
-- Graceful shutdown via signal handler (SIGINT/SIGTERM)
-- CORS default diubah dari `*` ke `http://localhost:8080,http://localhost:5173`
-- Backend `.env` file dibuat untuk konfigurasi lokal
-
-**File:** `auth.go`, `db.go`, `upload.go`, `main.go`, `handlers.go`, `crud.go`
+Dokumen ini mencatat seluruh perubahan kode yang dilakukan pada sesi ini.
 
 ---
 
-## 🐛 2. Bug Fix: Base64 Encoding pada JSON Fields
+## 1. 🔒 Security Hardening — Admin Route Protection
 
-### Problem
-Field bertipe `interface{}` di Go model (`SiteSetting.Value`, `Faculty.Facilities`, `Faculty.ContactInfo`) di-scan dari PostgreSQL `jsonb` sebagai `[]byte`, lalu di-base64 encode oleh `encoding/json` saat kirim ke frontend.
+### Masalah
+Route group `/api/v1/admin` tidak memiliki pengecekan role, sehingga **semua user yang login** (termasuk `faculty_admin`) bisa mengakses endpoint admin seperti delete user, ubah settings, dll.
 
-### Solution
-Ubah tipe dari `interface{}` ke `json.RawMessage` agar JSON di-embed as-is tanpa encoding.
+### Solusi
+Menambahkan middleware `requireRole("admin")` pada seluruh group admin.
 
+### File Diubah
+
+**`backend/main.go`**
 ```diff
-- Value     interface{} `json:"value"`
-+ Value     json.RawMessage `json:"value"`
-
-- Facilities  interface{} `json:"facilities"`
-+ Facilities  json.RawMessage `json:"facilities"`
-
-- ContactInfo interface{} `json:"contact_info"`
-+ ContactInfo json.RawMessage `json:"contact_info"`
+- admin := api.Group("/admin", authMiddleware)
++ admin := api.Group("/admin", authMiddleware, requireRole("admin"))
 ```
 
-Juga ditambahkan check di `normalizeValue()` untuk handle `json.RawMessage` tanpa double-encoding.
+---
 
-**File:** `models.go`, `crud.go`
+## 2. 📅 Fitur Campus Events (Full Stack)
+
+Menambahkan modul **Event Kampus** yang tampil di halaman beranda dan bisa dikelola dari admin panel.
+
+### 2.1 Backend
+
+#### `backend/schema.sql` — Tabel Baru
+```sql
+CREATE TABLE IF NOT EXISTS campus_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    image_url VARCHAR(500),
+    event_date DATE NOT NULL,
+    start_time TIME DEFAULT '00:00',
+    end_time TIME DEFAULT '23:59',
+    location VARCHAR(255),
+    active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### `backend/models.go` — Struct Baru
+```go
+type CampusEvent struct {
+    ID          string `json:"id"`
+    Title       string `json:"title"`
+    Description string `json:"description"`
+    ImageURL    string `json:"image_url"`
+    EventDate   string `json:"event_date"`
+    StartTime   string `json:"start_time"`
+    EndTime     string `json:"end_time"`
+    Location    string `json:"location"`
+    Active      bool   `json:"active"`
+    SortOrder   int    `json:"sort_order"`
+    CreatedAt   string `json:"created_at"`
+    UpdatedAt   string `json:"updated_at"`
+}
+```
+
+#### `backend/crud.go` — CRUD Whitelist
+```go
+"campus_events": {
+    "title": true, "description": true, "image_url": true, "event_date": true,
+    "start_time": true, "end_time": true, "location": true, "active": true, "sort_order": true,
+},
+```
+
+#### `backend/handlers.go` — 2 Handler Baru
+| Handler | Endpoint | Deskripsi |
+|:---|:---|:---|
+| `getEvents()` | `GET /api/v1/events` | List semua event aktif (public) |
+| `getEventByID()` | `GET /api/v1/events/:id` | Detail event by UUID (public) |
+
+#### `backend/main.go` — 2 Route Baru
+```go
+api.Get("/events", getEvents)
+api.Get("/events/:id", getEventByID)
+```
+
+### 2.2 Frontend
+
+#### `src/integrations/api/client.ts` — Type & Method
+```typescript
+// Type baru
+export interface CampusEvent {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string;
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  location: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Method baru
+async getEvents() { ... }
+async getEventByID(id: string) { ... }
+```
+
+#### `src/hooks/useCampusData.ts` — 2 Hook Baru
+```typescript
+export const useEvents = () => useQuery({ queryKey: ["campus_events"], ... });
+export const useEvent = (id: string) => useQuery({ queryKey: ["campus_event", id], ... });
+```
+
+#### `src/components/site/CampusEvents.tsx` — Komponen Beranda (BARU)
+- Grid 3 kolom event cards
+- Poster image dengan hover zoom effect
+- Tanggal besar (day/month) dengan gold accent line
+- Info waktu (jam mulai-selesai) dan lokasi
+- Card clickable → navigasi ke halaman detail
+- Auto-hide jika belum ada data event
+- Link "Lihat Semua Event"
+
+#### `src/routes/events.$id.tsx` — Halaman Detail Event (BARU)
+- Hero poster full-width
+- Info cards (tanggal, waktu, lokasi) dengan ikon dan warna berbeda
+- Deskripsi event lengkap
+- Tombol Share (native share API / copy link)
+- Section "Event Lainnya" di bagian bawah
+- Handling state: loading, not found, dan error
+
+#### `src/routes/index.tsx` — Homepage Updated
+```diff
++ import { CampusEvents } from "@/components/site/CampusEvents";
+
+  <News />
++ <CampusEvents />
+  <Testimonials />
+```
+
+#### `src/routes/admin.events.tsx` — Admin Page (BARU)
+- Menggunakan `CrudTable` component
+- Field: judul, deskripsi, tanggal, jam mulai/selesai, lokasi, poster image, aktif, urutan
+- Custom row render dengan thumbnail dan badge tanggal
+
+#### `src/routes/admin.tsx` — Sidebar Navigation
+```diff
++ import { CalendarDays } from "lucide-react";
+
+  { to: "/admin/news", label: "Berita", icon: Newspaper, roles: ["admin"] },
++ { to: "/admin/events", label: "Events", icon: CalendarDays, roles: ["admin"] },
+  { to: "/admin/testimonials", label: "Testimoni", icon: Quote, roles: ["admin"] },
+```
 
 ---
 
-## 🎨 3. Frontend Type Safety
+## 3. 🤖 Chatbot AI — Integrasi Sumopod (OpenAI-Compatible)
 
-### API Client (`client.ts`)
-- Dibuat **12 TypeScript interfaces**: `HeroSlide`, `Faculty`, `FacultyProgram`, `Lecturer`, `NewsItem`, `Testimonial`, `BlogPost`, `PageItem`, `ContactMessage`, `SiteSetting`, `AppUser`, `DashboardStats`
-- Semua `request<any>` diganti dengan typed generics
-- ~30 penggunaan `any` dihilangkan
+### 3.1 Backend — Provider OpenAI-Compatible
 
-### Hooks
-- `useFacultyData.ts` — semua `as any[]` cast dihapus
-- `useCampusData.ts` — `as any[]` cast dihapus
+#### `backend/chatbot.go` — Rewrite Total
 
-### ESLint
-- `no-unused-vars` diubah dari `off` ke `warn` dengan exception prefix `_`
+**Settings struct diperluas:**
+```go
+type ChatbotSettings struct {
+    Enabled      bool   `json:"enabled"`
+    ApiKey       string `json:"api_key"`
+    ApiUrl       string `json:"api_url"`      // BARU
+    Model        string `json:"model"`         // BARU
+    Provider     string `json:"provider"`
+    SystemPrompt string `json:"system_prompt"`
+}
+```
 
-**File:** `client.ts`, `useFacultyData.ts`, `useCampusData.ts`, `eslint.config.js`
+**Provider baru — `openai`:**
+- Fungsi `callOpenAICompatible()` mengirim request ke endpoint `/v1/chat/completions`
+- Default URL: `https://ai.sumopod.com/v1/chat/completions`
+- Default model: `gpt-5-nano`
+- System prompt dikirim sebagai message role `system`
+- Support semua model dari Sumopod/LiteLLM
 
----
+**Handler baru — `fetchChatbotModels()`:**
+- Endpoint: `POST /api/v1/admin/chatbot-models`
+- Menerima `api_url` dan `api_key` dari request body
+- Proxy GET request ke `/v1/models` dari provider
+- Otomatis derive URL models dari URL chat completions
+- Return daftar model yang tersedia
 
-## 🖼️ 4. Image Upload Fix
+**Provider lama — `gemini` tetap berfungsi.**
 
-### Problem
-1. Frontend di port `8080`, backend di port `3000` — gambar dengan path `/uploads/...` tidak bisa diakses
-2. Input field gambar pakai `type="url"` yang menolak path relatif `/uploads/hero/xxx.jpg`
+#### `backend/main.go` — Route Baru
+```go
+admin.Post("/chatbot-models", fetchChatbotModels)
+```
 
-### Solution
-1. Tambah **Vite proxy** di `vite.config.ts`: `/uploads` → `http://localhost:3000`
-2. Ubah `type="url"` → `type="text"` di CrudTable image field
+### 3.2 Frontend — Dynamic Model Loading
 
-**File:** `vite.config.ts`, `CrudTable.tsx`
+#### `src/components/admin/ChatbotForm.tsx` — Rewrite Total
 
----
+**Konfigurasi UI baru:**
+| Field | Tipe | Deskripsi |
+|:---|:---|:---|
+| Provider | Dropdown | OpenAI-Compatible / Gemini Direct |
+| API URL | Text input | Endpoint chat completions (pre-filled Sumopod) |
+| API Key | Password | Key dari provider AI |
+| Model | Dynamic dropdown | Auto-load dari `/v1/models` saat API key diisi |
 
-## 🎠 5. Hero Slider — Dinamis dari Database
+**Fitur model loading:**
+- Auto-fetch model list saat API key diisi (debounce 800ms)
+- Tombol manual "Muat Model" untuk refresh
+- Model dikelompokkan berdasarkan `owned_by` (openai, google, anthropic, dll)
+- Fallback input manual jika API gagal
+- Badge preview model terpilih
 
-### Sebelum
-Komponen `HeroSlider` sepenuhnya hardcoded (gambar statis, teks tetap).
+### 3.3 Frontend — Bug Fix Widget
 
-### Sesudah
-- Ambil data dari API via `useHeroSlides()`
-- Auto-advance setiap 6 detik
-- Navigasi kiri/kanan + dot indicator clickable
-- Animasi transisi antar slide (fade + slide)
-- Fallback "Belum ada slide" jika data kosong
+#### `src/components/site/ChatbotWidget.tsx` — Critical Fix
 
-**File:** `src/components/site/HeroSlider.tsx`
+**Bug:** Widget hanya memanggil backend API jika `provider === "gemini"`. Untuk provider lain, langsung return pesan simulasi hardcoded.
 
----
+```diff
+- if (chatbot.api_key && chatbot.provider === "gemini") {
+-   // call backend API...
+- } else {
+-   // hardcoded: "fitur AI sedang dalam tahap simulasi..."
+- }
 
-## 📊 6. StatsBar — Dinamis & Bisa Ditambah/Hapus
++ // Always send to backend API (backend handles all providers)
++ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
++ const res = await fetch(`${API_URL}/chat`, { ... });
+```
 
-### Sebelum
-4 statistik hardcoded dari `data/campus.ts`.
-
-### Sesudah
-- Data dari API (`site_settings` key `stats`)
-- **Bisa ditambah dan dihapus** dari admin Settings → Statistik
-- Grid otomatis menyesuaikan jumlah item (2/3/4 kolom)
-- Icon otomatis dari pool (MapPin, Building2, GraduationCap, dll)
-
-**File:** `src/components/site/StatsBar.tsx`, `src/components/admin/StatsSettingsForm.tsx`
-
----
-
-## ⚙️ 7. Admin Settings — Semua Tab Pakai Form UI
-
-### Sebelum
-Semua tab settings menggunakan **JSON editor** (textarea raw JSON).
-
-### Sesudah
-Setiap tab punya form UI proper:
-
-| Tab | Komponen | Fitur |
-|-----|----------|-------|
-| Info Kampus | `CampusInfoForm` | Input: nama, singkatan, tagline, motto, tahun berdiri |
-| Statistik | `StatsSettingsForm` | Card list + tambah/hapus item dinamis |
-| CTA Banner | `CtaBannerForm` | Input: eyebrow, judul, deskripsi, 2 tombol aksi |
-| Footer | `FooterForm` | Input: deskripsi, copyright, 3 kolom navigasi |
-| Kontak | `ContactForm` | 2 card: kontak (alamat/telp/email/WA) + sosial media |
-
-Tab buttons sekarang juga punya ikon.
-
-**File baru:**
-- `src/components/admin/CampusInfoForm.tsx`
-- `src/components/admin/StatsSettingsForm.tsx`
-- `src/components/admin/CtaBannerForm.tsx`
-- `src/components/admin/FooterForm.tsx`
-- `src/components/admin/ContactForm.tsx`
-- `src/hooks/useSettingsState.ts`
-
-**File diubah:** `src/routes/admin.settings.tsx`
+**Fix tambahan:** URL fallback diperbaiki dari `localhost:8080` ke `localhost:3000`.
 
 ---
 
-## 🏛️ 8. Program Studi Unggulan — Dinamis dari Database
-
-### Sebelum
-Fallback hardcoded 4 program studi jika API kosong.
-
-### Sesudah
-- Murni dari data Fakultas di API (`useFaculties()`)
-- Hanya tampilkan yang `active === true`
-- Grid otomatis (1-4+ kolom) sesuai jumlah data
-- Fallback dihapus — return `null` jika kosong
-
-**File:** `src/components/site/Faculties.tsx`
-
----
-
-## 📝 9. Admin Fakultas — Form UX Upgrade
-
-### CrudTable Field Types Baru
-2 field type ditambahkan ke `CrudTable`:
-
-| Type | Kegunaan | UI |
-|------|----------|-----|
-| `list-items` | Data array (fasilitas, dll) | List dinamis + tambah/hapus + sub-fields |
-| `key-value` | Data object (kontak, dll) | Grid input terstruktur |
-
-### Admin Fakultas Form
-| Field Lama | Field Baru |
-|---|---|
-| `facilities` → JSON textarea | `🏛️ Fasilitas` → list items (Nama + Deskripsi) |
-| `contact_info` → JSON textarea | `📞 Kontak Dekanat` → 3 input (Alamat, Email, Telepon) |
-
-**File:** `src/components/admin/CrudTable.tsx`, `src/routes/admin.faculties.tsx`
-
----
-
-## 🔧 10. Halaman Detail Fakultas — Fix & Full Dinamis
-
-### Bug Fix
-`facilities.map is not a function` — data dari DB bisa string/null/object, bukan array. Ditambahkan safe parsing untuk `facilities` dan `contact_info`.
-
-### Semua Section Dinamis
-| Section | Data Source | Editable dari Admin |
-|---------|-------------|---------------------|
-| Hero (gambar, eyebrow, judul, deskripsi) | `faculties` table | ✅ Menu Fakultas |
-| Quick Stats (prodi, dosen, akreditasi) | API count + `faculties` | ✅ Otomatis |
-| Tentang (about, visi, misi) | `faculties` table (Markdown) | ✅ Menu Fakultas |
-| Program Studi | `faculty_programs` table | ✅ Menu Program Studi |
-| Dosen | `lecturers` table | ✅ Menu Dosen |
-| Fasilitas | `faculties.facilities` (JSON array) | ✅ Menu Fakultas (list-items) |
-| Artikel | `blog_posts` (filter by faculty_id) | ✅ Menu Blog |
-| Kontak Dekanat | `faculties.contact_info` (JSON object) | ✅ Menu Fakultas (key-value) |
-
-**File:** `src/routes/fakultas.$slug.tsx`
-
----
-
-## 🐛 11. Fix Admin Blank Page & Global Theme
-
-### Problem
-Halaman admin menjadi *blank page* akibat dua hal:
-1. `RootComponent` mencoba menggunakan `isAdmin` namun tidak memanggil `useAuth()`.
-2. Tabel `site_settings` di PostgreSQL belum terbentuk, sehingga API error (500) dan menyebabkan *crash* pada React.
-
-### Solution
-1. **Auto-migrate DB**: Modifikasi `backend/db.go` agar tabel `site_settings` otomatis dibuat jika belum ada.
-2. **Global Theme Provider**: Pemilihan tema (terang/gelap dan warna aksen) sekarang dipisah. Pengaturan tema hanya muncul untuk admin (`<ThemeSwitcher />`), tapi pengaplikasian tema berjalan secara global menggunakan `<HeadThemeProvider />` di `__root.tsx`, sehingga bisa dilihat oleh pengguna umum tanpa bisa diganti seenaknya.
-
----
-
-## 💾 12. Dummy Data (Database Seeder)
-
-Membuat skrip *seeder* otomatis (`seed.sql` & `seed.go`) untuk mengisi data dummy dalam jumlah besar agar semua menu admin memiliki konten uji coba.
-- 10 Fakultas lengkap dengan gambar & deskripsi unik
-- 30 Program Studi (3 per fakultas)
-- 30 Dosen (3 per fakultas)
-- 10 Hero Slides, News, Testimoni, Pages
-- 20 Artikel Blog
-- Setiap data di-*generate* secara dinamis menggunakan loop `PL/pgSQL` dan hash random (`md5`) untuk menghindari bentrok (`duplicate key unique constraint`).
-
----
-
-## 📖 13. Fix Routing Halaman Detail Blog
-
-### Problem
-Ketika mengklik artikel blog, muncul *404 Not Found*. Ini karena konflik antara sistem *Flat Routing* TanStack Router dan penamaan *layout*. File `blog.tsx` bertindak sebagai layout pembungkus tanpa `<Outlet />`, sehingga child route `blog.$slug.tsx` tidak pernah dirender.
-
-### Solution
-Mengubah struktur dari *Flat Routing* ke *Directory Routing*. File `blog.index.tsx` dan `blog.$slug.tsx` dipindahkan ke dalam sub-folder `src/routes/blog/`. Route tree di-*generate* ulang dan Vite di-*restart*, membuat route `/blog/$slug` berfungsi mandiri.
-
----
-
-## 👁️ 14. IP-Based View Counter Artikel Blog
-
-### Problem
-Mencegah duplikasi hitungan *view* (dilihat) ketika pengguna me-*refresh* artikel yang sama berulang kali.
-
-### Solution
-1. **Schema Update**: Tambah tabel baru `blog_post_views` (menyimpan ID postingan dan IP pengunjung dengan constraint UNIQUE) dan tambah kolom `views` di `blog_posts`.
-2. **Backend Logic**: API `GET /blog/:slug` dimodifikasi. Setiap kali artikel dibuka, backend membaca `c.IP()` dan melakukan `INSERT ... ON CONFLICT DO NOTHING`. Jika berhasil, kolom `views` ditambahkan +1.
-3. **Frontend UI**: Ikon Mata (Eye) dari `lucide-react` ditambahkan di halaman `/blog` dan `/blog/$slug` untuk menampilkan data statistik *view*.
-
----
-
-## 🤖 15. AI Chatbot Integration (Gemini AI)
-
-### Backend Proxy Security
-- **Problem**: Memanggil API Gemini langsung dari browser membocorkan API Key ke publik via Network Tab.
-- **Solution**: Membuat *secure proxy* di GoFiber (`POST /api/v1/chat`). Backend mengambil API Key dari database, lalu melakukan request ke Google Gemini secara rahasia.
-
-### Admin Configuration
-- Menu baru di **Settings > AI Chatbot** untuk:
-  - On/Off Chatbot secara instan.
-  - Mengatur API Key Gemini.
-  - Menyetel **System Prompt** (Kepribadian AI).
-  - Menentukan pesan sapaan (*Initial Greeting*).
-
-### Auth-Restricted Usage
-- Chatbot dibatasi hanya untuk user terdaftar. 
-- Pengunjung umum tetap bisa melihat widget, namun saat dibuka akan muncul pesan kunci (*Locked State*) dengan tombol ajakan untuk Login/Register.
-
-**File:** `backend/chatbot.go`, `src/components/site/ChatbotWidget.tsx`, `src/components/admin/ChatbotForm.tsx`
-
----
-
-## 📉 16. Real Analytics Dashboard
-
-### Backend Analytics Engine
-- **Problem**: Data grafik di dashboard sebelumnya hanya dummy/random.
-- **Solution**: Membuat endpoint `GET /api/v1/admin/analytics` yang menghitung data asli dari database:
-  - **Kunjungan**: Data dari tabel `blog_post_views` (berdasarkan IP unik).
-  - **Pesan**: Jumlah pesan masuk dari `contact_messages`.
-  - **Konten**: Agregasi pembuatan berita dan artikel blog 30 hari terakhir.
-
-### Frontend Chart Integration
-- Dashboard Statistik kini sepenuhnya dinamis menggunakan data dari backend.
-- Grafik Recharts menampilkan tren asli aktivitas website dalam 30 hari terakhir.
-
-**File:** `backend/analytics.go`, `src/routes/admin.index.tsx`, `client.ts`, `useCampusData.ts`
-
----
-
-## 🧼 17. UI Cleanup: Dashboard Focus
-
-### Conditionally Hidden Widgets
-- Widget melayang (*Chatbot*, *Scroll To Top*) otomatis disembunyikan ketika pengguna berada di halaman Admin atau PMB Dashboard agar tidak mengganggu navigasi dashboard.
-
-### Floating Theme Switcher Removal
-- Ikon melayang pemilih warna tema di halaman Admin dihapus.
-- Pengaturan tema sekarang terpusat secara resmi di **Settings > Tampilan & Tema** (mencegah duplikasi UI).
-
-**File:** `src/routes/__root.tsx`, `src/routes/admin.tsx`
-
----
-
-## 🎨 18. Global Theme Enforcement
-
-### Force Global Style
-- **Problem**: User yang pernah memilih warna secara lokal via widget lama terkunci pada warna tersebut meskipun Admin sudah merubah tema website secara global.
-- **Solution**: `GlobalThemeProvider` dimodifikasi untuk menghapus data `localStorage` (override lokal) dan memaksa warna dari pengaturan Admin diaplikasikan ke semua pengguna.
-
-**File:** `src/routes/__root.tsx`
-
----
-
-## 📁 Daftar File yang Diubah
+## 📁 Daftar File yang Diubah/Ditambah
 
 ### Backend (Go)
-| File | Perubahan |
-|------|-----------|
-| `auth.go` | JWT init, signing verification, login validation |
-| `db.go` | Connection pooling config, **Auto-create site_settings** |
-| `upload.go` | Extension whitelist, size limit |
-| `main.go` | Graceful shutdown, CORS, health check |
-| `handlers.go` | **IP-based view counter (`blog_post_views`)**, generic error messages |
-| `chatbot.go` | **NEW** — Secure AI Proxy for Gemini |
-| `analytics.go` | **NEW** — 30-day analytics data generator |
-| `crud.go` | Generic error messages, json.RawMessage handling |
-| `models.go` | interface{} → json.RawMessage, **Tambah kolom Views di BlogPost** |
-| `schema.sql` | Perbaikan constraint pada faculties & faculty_programs |
-| `seed.sql` & `seed.go` | **NEW** — Data Seeder Generator |
-| `add_views.go` | **NEW** — Database Migration Script untuk views |
+| File | Status | Perubahan |
+|:---|:---|:---|
+| `backend/main.go` | ✏️ Modified | +requireRole, +3 routes (events, events/:id, chatbot-models) |
+| `backend/schema.sql` | ✏️ Modified | +tabel campus_events |
+| `backend/models.go` | ✏️ Modified | +struct CampusEvent |
+| `backend/crud.go` | ✏️ Modified | +campus_events whitelist |
+| `backend/handlers.go` | ✏️ Modified | +getEvents(), +getEventByID() |
+| `backend/chatbot.go` | 🔄 Rewritten | +OpenAI-compatible provider, +fetchChatbotModels() |
 
 ### Frontend (TypeScript/React)
-| File | Perubahan |
-|------|-----------|
-| `client.ts` | 12 TypeScript interfaces, typed generics |
-| `useFacultyData.ts` | Removed `as any[]` casts |
-| `useCampusData.ts` | Removed `as any[]` cast |
-| `useSettingsState.ts` | Reusable settings hook |
-| `eslint.config.js` | Enable unused vars warning |
-| `vite.config.ts` | Vite proxy untuk /uploads |
-| `__root.tsx` | **Widget Visibility Logic**, **Force Global Theme**, access check |
-| `routeTree.gen.ts` | **Regenerated untuk blog directory routing** |
-| `CrudTable.tsx` | `type="text"` fix, `list-items` & `key-value` fields |
-| `HeroSlider.tsx` | Full rewrite — dynamic from API |
-| `StatsBar.tsx` | Dynamic items from settings |
-| `Faculties.tsx` | Removed fallback, pure API-driven |
-| `fakultas.$slug.tsx` | Safe parsing facilities/contact |
-| `blog/index.tsx` | **MOVED** dari `blog.tsx` — Ditambah indikator View |
-| `blog/$slug.tsx` | **MOVED** — Ditambah indikator View & Share button |
-| `admin.index.tsx` | **Real Analytics Integration** |
-| `admin.settings.tsx` | Form components per tab (incl. Chatbot tab) |
-| `admin.faculties.tsx` | list-items & key-value fields |
-| `ChatbotWidget.tsx` | **NEW** — Floating AI Chatbot with Locked Auth State |
-| `ChatbotForm.tsx` | **NEW** — AI Management Form (API, Prompts, Status) |
-| `ThemeSettingsForm.tsx` | UI Tema Website |
-| `CampusInfoForm.tsx` | Form komponen |
-| `StatsSettingsForm.tsx` | Dynamic add/remove |
-| `CtaBannerForm.tsx` | Form komponen |
-| `FooterForm.tsx` | Form komponen |
-| `ContactForm.tsx` | Form komponen |
+| File | Status | Perubahan |
+|:---|:---|:---|
+| `src/integrations/api/client.ts` | ✏️ Modified | +CampusEvent type, +getEvents(), +getEventByID() |
+| `src/hooks/useCampusData.ts` | ✏️ Modified | +useEvents(), +useEvent() |
+| `src/components/site/CampusEvents.tsx` | 🆕 New | Komponen event grid di beranda |
+| `src/routes/events.$id.tsx` | 🆕 New | Halaman detail event |
+| `src/routes/admin.events.tsx` | 🆕 New | Admin CRUD page untuk events |
+| `src/routes/index.tsx` | ✏️ Modified | +CampusEvents di homepage |
+| `src/routes/admin.tsx` | ✏️ Modified | +Events menu di sidebar |
+| `src/components/admin/ChatbotForm.tsx` | 🔄 Rewritten | Dynamic model loading dari API |
+| `src/components/site/ChatbotWidget.tsx` | ✏️ Modified | Fix: semua provider kirim ke backend |
 
-### Config
-| File | Perubahan |
-|------|-----------|
-| `backend/.env` | CORS, JWT_SECRET, DB config |
-| `client.ts` | **getAnalytics()**, TypeScript types |
-| `useCampusData.ts` | **useAnalytics() hook** |
-| `docs/update.md` | This file |
+---
+
+## 🗄️ SQL Migration (Jalankan di Production)
+
+```sql
+-- Campus Events
+CREATE TABLE IF NOT EXISTS campus_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    image_url VARCHAR(500),
+    event_date DATE NOT NULL,
+    start_time TIME DEFAULT '00:00',
+    end_time TIME DEFAULT '23:59',
+    location VARCHAR(255),
+    active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+---
+
+## ⚙️ Konfigurasi Chatbot Sumopod (Admin Dashboard)
+
+Setelah deploy, buka **Admin → Settings → AI Chatbot** dan isi:
+
+| Field | Nilai |
+|:---|:---|
+| Provider | `OpenAI-Compatible (Sumopod / LiteLLM / OpenAI)` |
+| API URL | `https://ai.sumopod.com/v1/chat/completions` |
+| API Key | `sk-xxxxx` (dari dashboard Sumopod) |
+| Model | Pilih dari dropdown yang muncul otomatis |
+
+### Model Rekomendasi (Harga per 1M token)
+| Model | Harga Input | Cocok Untuk |
+|:---|:---|:---|
+| `gpt-5-nano` | $0.05 | Chatbot ringan, paling hemat |
+| `deepseek-v4-flash` | $0.14 | Balance performa & harga |
+| `qwen3.6-flash` | $0.13 (50% off) | Alternatif murah |
+| `gemini/gemini-2.5-flash` | $0.30 | Reliable & cepat |
+| `claude-haiku-4-5` | $0.70 (30% off) | Quality tinggi |
+
+---
+
+## 4. 🎨 Peningkatan UI & Integrasi Peta Leaflet
+
+### 4.1 Widget Chatbot Dinamis
+- **Ukuran Widget Kustom:** Menambahkan pengaturan `bot_avatar_size` pada UI form Chatbot admin dengan bentuk *slider*. Admin dapat mengatur ukuran maskot chatbot secara bebas (64px - 256px).
+- **Tampilan Tanpa Batas (Borderless):** Memperbarui `src/components/site/ChatbotWidget.tsx` agar avatar maskot bot (misal: "UPIK") tidak lagi terpotong ke dalam lingkaran background kecil. Menggunakan efek `drop-shadow` agar gambar transparan melayang alami (3D floating style).
+
+### 4.2 Peta Leaflet (OpenStreetMap) untuk Event
+- **Dependensi Baru:** Menginstal library `leaflet` dan `react-leaflet`.
+- **Komponen Peta Pintar:** Membuat `src/components/site/LeafletMap.tsx`. Fitur ini memprioritaskan koordinat pasti. Jika belum ada, akan menggunakan layanan Nominatim API (gratis) untuk menebak koordinat dari nama lokasi.
+- **Peta Detail Event:** Menampilkan peta lokasi di halaman detail acara publik (`src/routes/events.$id.tsx`).
+- **Peta Menu Event Dashboard:** Menampilkan semua acara mendatang di User Dashboard (`src/routes/dashboard.events.tsx`) beserta tombol ekspansi untuk memunculkan peta secara inline.
+
+### 4.3 Akurasi Koordinat Event (Full-stack)
+- **Perubahan Database:** Menambahkan kolom `map_coordinates VARCHAR(100)` pada tabel `campus_events` (di `schema.sql`).
+- **Auto-Migration:** Mengimplementasikan fungsi *auto-alter table* sederhana di fungsi `initDB()` pada `backend/db.go`.
+- **Admin & API:** Mengupdate `crud.go`, `handlers.go`, dan `models.go` untuk membaca dan menyimpan field koordinat peta.
+- **Form Admin:** Di `src/routes/admin.events.tsx`, ditambahkan kolom isian "Koordinat Peta (Opsional)" agar admin bisa meletakkan `latitude, longitude` yang 100% akurat dari Google Maps.
+
+### 4.4 Header Fakultas Dinamis (Slider & Partikel JS)
+- **Modifikasi Header (`src/routes/fakultas/$slug.tsx`):**
+  - Menerapkan komponen `HeroParticles` agar halaman profil fakultas memiliki efek visual partikel interaktif yang sama dengan beranda.
+  - Memasukkan elemen `AnimatePresence` dan `motion.div` dari Framer Motion. Gambar cover fakultas sekarang akan muncul dengan efek transisi *fade & pelan-pelan zoom-out* (meniru gaya visual slider).
+  - **Fallback Cerdas:** Apabila suatu fakultas tidak memiliki gambar `cover_image_url`, maka halaman akan otomatis mengambil gambar-gambar dari *Global Hero Slider* (beranda) dan menampilkannya bergantian setiap 5 detik di latar belakang fakultas tersebut.

@@ -19,7 +19,12 @@ import {
   useFacultyLecturers,
   useFacultyBlogPosts,
 } from "@/hooks/useFacultyData";
+import { useHeroSlides, useSiteSettings } from "@/hooks/useCampusData";
 import { cn } from "@/lib/utils";
+import { HeroParticles, defaultParticleConfig } from "@/components/site/HeroParticles";
+import type { ParticleConfig } from "@/components/site/HeroParticles";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/fakultas/$slug")({
   component: FacultyMicrosite,
@@ -37,6 +42,19 @@ function FacultyMicrosite() {
   const { data: programs = [] } = useFacultyPrograms(faculty?.id);
   const { data: lecturers = [] } = useFacultyLecturers(faculty?.id);
   const { data: posts = [] } = useFacultyBlogPosts(faculty?.id, 3);
+  const { data: slides = [] } = useHeroSlides();
+  const { data: siteSettings } = useSiteSettings();
+  
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    if (slides.length > 1) {
+      const timer = setInterval(() => {
+        setCurrentSlide((c) => (c + 1) % slides.length);
+      }, 5000);
+      return () => clearInterval(timer);
+    }
+  }, [slides.length]);
 
   if (isLoading)
     return (
@@ -78,26 +96,53 @@ function FacultyMicrosite() {
   const heroTitle = faculty.hero_title || faculty.name;
   const heroDesc = faculty.hero_description || faculty.description;
 
+  const particleConfig: ParticleConfig = {
+    ...defaultParticleConfig,
+    ...((siteSettings?.hero_particles ?? {}) as Partial<ParticleConfig>),
+  };
+
+  // Gunakan gambar fakultas jika ada, jika tidak gunakan slider global
+  const backgroundImages = faculty.cover_image_url 
+    ? [{ id: "faculty-cover", image_url: faculty.cover_image_url }]
+    : slides.length > 0 ? slides : [];
+
+  const activeImage = backgroundImages.length > 0 
+    ? backgroundImages[currentSlide % backgroundImages.length]?.image_url 
+    : null;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main>
         {/* HERO */}
         <section className="relative overflow-hidden">
-          {faculty.cover_image_url ? (
-            <div className="absolute inset-0">
-              <img
-                src={faculty.cover_image_url}
-                alt={faculty.name}
-                className="h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/70 to-primary/40" />
-            </div>
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-accent" />
-          )}
-          <div className="relative px-5 pb-24 pt-36 lg:px-8 lg:pb-32 lg:pt-44">
-            <div className="mx-auto max-w-7xl">
+          <AnimatePresence mode="popLayout">
+            {activeImage ? (
+              <motion.div
+                key={activeImage}
+                initial={{ opacity: 0, scale: 1.05 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
+                className="absolute inset-0"
+              >
+                <img
+                  src={activeImage}
+                  alt={faculty.name}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/95 via-primary/80 to-primary/40" />
+              </motion.div>
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-accent" />
+            )}
+          </AnimatePresence>
+
+          {/* Particles overlay */}
+          <HeroParticles config={particleConfig} />
+
+          <div className="relative px-5 pb-24 pt-36 lg:px-8 lg:pb-32 lg:pt-44 z-10 pointer-events-none">
+            <div className="mx-auto max-w-7xl pointer-events-auto">
               <div className="flex items-center gap-4">
                 <div
                   className={cn(

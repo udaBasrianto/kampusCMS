@@ -15,6 +15,8 @@ export function ChatbotWidget() {
   const { data: settings } = useSiteSettings();
   const chatbot = (settings?.chatbot ?? {}) as any;
   const isEnabled = chatbot.enabled === true;
+  const botAvatar = chatbot.bot_avatar as string | undefined;
+  const botAvatarSize = Number(chatbot.bot_avatar_size) || 112;
   const { user } = useAuth();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -56,49 +58,38 @@ export function ChatbotWidget() {
     setIsLoading(true);
 
     try {
-      if (chatbot.api_key && chatbot.provider === "gemini") {
-        // Send history to our secure backend API instead of calling Gemini directly
-        const history = messages
-          .filter(m => m.id !== "greeting") // Skip greeting
-          .map(m => ({
-            role: m.role,
-            content: m.content
-          }));
-          
-        // Add current user message
-        history.push({
-          role: "user",
-          content: userMsg.content
-        });
-
-        const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
-        const res = await fetch(`${API_URL}/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: history
-          })
-        });
-
-        if (!res.ok) throw new Error("API Error");
+      // Send conversation history to backend API (handles all providers)
+      const history = messages
+        .filter(m => m.id !== "greeting")
+        .map(m => ({
+          role: m.role,
+          content: m.content
+        }));
         
-        const data = await res.json();
-        
-        setMessages((prev) => [...prev, { 
-          id: (Date.now() + 1).toString(), 
-          role: "assistant", 
-          content: data.reply || "Maaf, saya tidak mengerti." 
-        }]);
+      // Add current user message
+      history.push({
+        role: "user",
+        content: userMsg.content
+      });
 
-      } else {
-        // Mock response if no API key
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setMessages((prev) => [...prev, { 
-          id: (Date.now() + 1).toString(), 
-          role: "assistant", 
-          content: "Maaf, fitur AI sedang dalam tahap simulasi karena API Key belum dikonfigurasi di dashboard admin." 
-        }]);
-      }
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+      const res = await fetch(`${API_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: history
+        })
+      });
+
+      if (!res.ok) throw new Error("API Error");
+      
+      const data = await res.json();
+      
+      setMessages((prev) => [...prev, { 
+        id: (Date.now() + 1).toString(), 
+        role: "assistant", 
+        content: data.reply || "Maaf, saya tidak mengerti." 
+      }]);
     } catch (err) {
       console.error(err);
       setMessages((prev) => [...prev, { 
@@ -124,17 +115,30 @@ export function ChatbotWidget() {
     <div className="fixed bottom-24 lg:bottom-6 left-5 lg:left-6 z-50 flex flex-col items-start">
       {/* Floating Button */}
       {!isOpen && (
-        <button
-          onClick={toggleOpen}
-          className="group flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-elevated transition-transform hover:scale-105 animate-in zoom-in"
-        >
-          <Bot className="h-6 w-6 transition-transform group-hover:scale-110" />
-          {/* Notification Dot */}
-          <span className="absolute right-0 top-0 flex h-3.5 w-3.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"></span>
-            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-accent border-2 border-primary"></span>
-          </span>
-        </button>
+        botAvatar ? (
+          <button
+            onClick={toggleOpen}
+            style={{ width: botAvatarSize, height: botAvatarSize }}
+            className="group relative flex items-center justify-center transition-transform hover:scale-110 animate-in zoom-in"
+          >
+            <img src={botAvatar} alt="Chat" className="h-full w-full object-contain drop-shadow-2xl" />
+            <span className="absolute right-4 top-4 flex h-4 w-4">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"></span>
+              <span className="relative inline-flex h-4 w-4 rounded-full bg-accent border-2 border-white"></span>
+            </span>
+          </button>
+        ) : (
+          <button
+            onClick={toggleOpen}
+            className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-elevated transition-transform hover:scale-105 animate-in zoom-in"
+          >
+            <Bot className="h-6 w-6 transition-transform group-hover:scale-110" />
+            <span className="absolute right-0 top-0 flex h-3.5 w-3.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"></span>
+              <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-accent border-2 border-primary"></span>
+            </span>
+          </button>
+        )
       )}
 
       {/* Chat Window */}
@@ -151,9 +155,13 @@ export function ChatbotWidget() {
             onClick={() => setIsMinimized(!isMinimized)}
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
-                <Bot className="h-4 w-4" />
-              </div>
+              {botAvatar ? (
+                <img src={botAvatar} alt="Bot" className="h-8 w-8 object-contain" />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                  <Bot className="h-4 w-4" />
+                </div>
+              )}
               <div>
                 <h3 className="text-sm font-bold leading-none">Asisten Kampus</h3>
                 <p className="mt-1 text-[10px] text-white/70">Online</p>

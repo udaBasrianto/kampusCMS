@@ -1,10 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useHeroSlides } from "@/hooks/useCampusData";
+import { useHeroSlides, useSiteSettings } from "@/hooks/useCampusData";
+import { HeroParticles, defaultParticleConfig } from "./HeroParticles";
+import type { ParticleConfig } from "./HeroParticles";
 
 export function HeroSlider() {
   const { data: slides = [] } = useHeroSlides();
+  const { data: siteSettings } = useSiteSettings();
+  const particleConfig: ParticleConfig = {
+    ...defaultParticleConfig,
+    ...((siteSettings?.hero_particles ?? {}) as Partial<ParticleConfig>),
+  };
   const [current, setCurrent] = useState(0);
 
   const count = slides.length;
@@ -56,6 +63,9 @@ export function HeroSlider() {
           <div className="absolute inset-0 bg-gradient-to-b from-white/15 via-transparent to-white" />
         </motion.div>
       </AnimatePresence>
+
+      {/* Particles overlay */}
+      <HeroParticles config={particleConfig} />
 
       {/* Navigation arrows */}
       {count > 1 && (

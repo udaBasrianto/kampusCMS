@@ -156,3 +156,19 @@ type SiteSetting struct {
 	Value     *json.RawMessage `json:"value"`
 	UpdatedAt string          `json:"updated_at"`
 }
+
+type CampusEvent struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	ImageURL    string `json:"image_url"`
+	EventDate   string `json:"event_date"`
+	StartTime   string `json:"start_time"`
+	EndTime     string `json:"end_time"`
+	Location       string `json:"location"`
+	MapCoordinates string `json:"map_coordinates"`
+	Active         bool   `json:"active"`
+	SortOrder      int    `json:"sort_order"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}

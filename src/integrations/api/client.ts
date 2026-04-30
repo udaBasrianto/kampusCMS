@@ -151,6 +151,22 @@ export interface SiteSetting {
   updated_at: string;
 }
 
+export interface CampusEvent {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string;
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  location: string;
+  map_coordinates?: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AppUser {
   id: string;
   email: string;
@@ -323,6 +339,15 @@ export class ApiClient {
   // Testimonials
   async getTestimonials() {
     return this.request<Testimonial[]>("/testimonials");
+  }
+
+  // Events
+  async getEvents() {
+    return this.request<CampusEvent[]>("/events");
+  }
+
+  async getEventByID(id: string) {
+    return this.request<CampusEvent>(`/events/${id}`);
   }
 
   // Blog

@@ -17,6 +17,7 @@ import {
   ExternalLink,
   BookOpen,
   UserSquare2,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
@@ -44,6 +45,7 @@ const allNav = [
   },
   { to: "/admin/lecturers", label: "Dosen", icon: UserSquare2, roles: ["admin", "faculty_admin"] },
   { to: "/admin/news", label: "Berita", icon: Newspaper, roles: ["admin"] },
+  { to: "/admin/events", label: "Events", icon: CalendarDays, roles: ["admin"] },
   { to: "/admin/testimonials", label: "Testimoni", icon: Quote, roles: ["admin"] },
   { to: "/admin/blog", label: "Blog", icon: FileText, roles: ["admin", "faculty_admin"] },
   { to: "/admin/pages", label: "Halaman", icon: Layout, roles: ["admin"] },
