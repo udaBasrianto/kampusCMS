@@ -22,7 +22,8 @@ func fetchChatbotModels(c *fiber.Ctx) error {
 		ApiKey string `json:"api_key"`
 	}
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+		log.Println("BodyParser error in fetchChatbotModels:", err, "Body:", string(c.Body()))
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request: " + err.Error()})
 	}
 	if req.ApiKey == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "API key is required"})
