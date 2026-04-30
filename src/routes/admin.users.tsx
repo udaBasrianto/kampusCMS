@@ -113,6 +113,66 @@ function Page() {
     }
   };
 
+  // CRUD for Regular Users
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [userForm, setUserForm] = useState({
+    email: "",
+    password: "",
+    full_name: "",
+  });
+
+  const submitCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (userForm.password.length < 6) return toast.error("Password minimal 6 karakter");
+    setCreatingUser(true);
+    try {
+      const { error } = await apiClient.createUser({
+        ...userForm,
+        role: "user",
+      });
+      if (error) {
+        toast.error(error);
+      } else {
+        toast.success(`User biasa dibuat`);
+        setUserForm({ email: "", password: "", full_name: "" });
+        qc.invalidateQueries({ queryKey: ["active_users"] });
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal membuat akun");
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
+  const [editingUserUid, setEditingUserUid] = useState<string | null>(null);
+  const [editUserForm, setEditUserForm] = useState({
+    full_name: "",
+    email: "",
+    password: "",
+  });
+  
+  const startEditUser = (u: any) => {
+    setEditingUserUid(u.id);
+    setEditUserForm({ full_name: u.full_name, email: u.email, password: "" });
+  };
+
+  const saveEditUser = async () => {
+    if (!editingUserUid) return;
+    const payload: any = {
+      full_name: editUserForm.full_name,
+      email: editUserForm.email,
+    };
+    if (editUserForm.password) {
+      if (editUserForm.password.length < 6) return toast.error("Password minimal 6 karakter");
+      payload.password = editUserForm.password;
+    }
+    const { error } = await apiClient.updateUser(editingUserUid, payload);
+    if (error) return toast.error(error);
+    toast.success("Data user diperbarui");
+    setEditingUserUid(null);
+    qc.invalidateQueries({ queryKey: ["active_users"] });
+  };
+
   // Edit faculty admin assignments
   const [editingUid, setEditingUid] = useState<string | null>(null);
   const [editFids, setEditFids] = useState<string[]>([]);
@@ -247,43 +307,146 @@ function Page() {
       )}
 
       {tab === "user" && (
-        <div className="mt-6 grid gap-3">
-          <h2 className="font-display text-lg font-semibold">User Biasa (Aktif)</h2>
-          {activeUsersQuery.isLoading && <p className="text-sm text-muted-foreground">Memuat...</p>}
-          {activeUsers.length === 0 && !activeUsersQuery.isLoading && (
-            <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
-              Belum ada user biasa yang aktif.
-            </div>
-          )}
-          {activeUsers.map((u: any) => (
-            <div key={u.id} className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Shield className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="font-display font-semibold truncate">{u.full_name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{u.email}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Bergabung pada: {new Date(u.created_at).toLocaleString("id-ID")}
-                  </div>
-                </div>
+        <div className="mt-6 grid gap-6">
+          {/* Form Create User Biasa */}
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" /> Tambah User Baru
+            </h2>
+            <form onSubmit={submitCreateUser} className="mt-4 grid gap-4 sm:grid-cols-3 items-end">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Nama Lengkap</label>
+                <input
+                  type="text"
+                  required
+                  value={userForm.full_name}
+                  onChange={(e) => setUserForm({ ...userForm, full_name: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-input px-3 py-2 text-sm bg-background"
+                />
               </div>
-              <button
-                onClick={async () => {
-                  if (!confirm("Hapus user ini?")) return;
-                  const { error } = await apiClient.deleteUser(u.id);
-                  if (error) return toast.error("Gagal menghapus user");
-                  toast.success("User dihapus");
-                  qc.invalidateQueries({ queryKey: ["active_users"] });
-                }}
-                className="rounded-lg p-2 text-destructive hover:bg-destructive/10"
-                title="Hapus User"
-              >
-                <ShieldOff className="h-4 w-4" />
-              </button>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={userForm.email}
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-input px-3 py-2 text-sm bg-background"
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-xs font-medium text-muted-foreground">Password</label>
+                  <input
+                    type="text"
+                    required
+                    value={userForm.password}
+                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-input px-3 py-2 text-sm bg-background"
+                    placeholder="Min. 6 karakter"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={creatingUser}
+                  className="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {creatingUser ? <Loader2 className="h-5 w-5 animate-spin" /> : "Buat"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div>
+            <h2 className="font-display text-lg font-semibold mb-3">Daftar User Biasa (Aktif)</h2>
+            {activeUsersQuery.isLoading && <p className="text-sm text-muted-foreground">Memuat...</p>}
+            {activeUsers.length === 0 && !activeUsersQuery.isLoading && (
+              <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
+                Belum ada user biasa yang aktif.
+              </div>
+            )}
+            <div className="grid gap-3">
+              {activeUsers.map((u: any) => (
+                <div key={u.id} className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
+                  {editingUserUid === u.id ? (
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Nama Lengkap</label>
+                        <input
+                          type="text"
+                          value={editUserForm.full_name}
+                          onChange={(e) => setEditUserForm({ ...editUserForm, full_name: e.target.value })}
+                          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Email</label>
+                        <input
+                          type="email"
+                          value={editUserForm.email}
+                          onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                          className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="text-xs text-muted-foreground">Password (opsional)</label>
+                          <input
+                            type="text"
+                            placeholder="Biarkan kosong jika tidak diubah"
+                            value={editUserForm.password}
+                            onChange={(e) => setEditUserForm({ ...editUserForm, password: e.target.value })}
+                            className="mt-1 w-full rounded-md border border-input px-3 py-1.5 text-sm"
+                          />
+                        </div>
+                        <div className="mt-5 flex gap-1">
+                          <button onClick={saveEditUser} className="rounded-md bg-primary px-3 py-1.5 text-xs text-white">Simpan</button>
+                          <button onClick={() => setEditingUserUid(null)} className="rounded-md bg-muted px-3 py-1.5 text-xs">Batal</button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <Shield className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-display font-semibold truncate">{u.full_name}</div>
+                          <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Bergabung pada: {new Date(u.created_at).toLocaleString("id-ID")}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button
+                          onClick={() => startEditUser(u)}
+                          className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                          title="Edit User"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm("Hapus user ini?")) return;
+                            const { error } = await apiClient.deleteUser(u.id);
+                            if (error) return toast.error("Gagal menghapus user");
+                            toast.success("User dihapus");
+                            qc.invalidateQueries({ queryKey: ["active_users"] });
+                          }}
+                          className="rounded-lg p-2 text-destructive hover:bg-destructive/10"
+                          title="Hapus User"
+                        >
+                          <ShieldOff className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       )}
 

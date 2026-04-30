@@ -575,6 +575,9 @@ func updateUser(c *fiber.Ctx) error {
 	var req struct {
 		FacultyIDs []string `json:"faculty_ids"`
 		Status     string   `json:"status"`
+		FullName   string   `json:"full_name"`
+		Email      string   `json:"email"`
+		Password   string   `json:"password"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
@@ -584,6 +587,37 @@ func updateUser(c *fiber.Ctx) error {
 		if _, err := db.ExecContext(context.Background(), "UPDATE users SET status=$1 WHERE id=$2", req.Status, id); err != nil {
 			log.Println("updateUser status error:", err)
 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user status"})
+		}
+	}
+
+	if req.FullName != "" || req.Email != "" || req.Password != "" {
+		// Build dynamic query
+		query := "UPDATE users SET updated_at=NOW()"
+		var args []interface{}
+		argId := 1
+
+		if req.FullName != "" {
+			query += fmt.Sprintf(", full_name=$%d", argId)
+			args = append(args, req.FullName)
+			argId++
+		}
+		if req.Email != "" {
+			query += fmt.Sprintf(", email=$%d", argId)
+			args = append(args, req.Email)
+			argId++
+		}
+		if req.Password != "" {
+			query += fmt.Sprintf(", password_hash=crypt($%d, gen_salt('bf'))", argId)
+			args = append(args, req.Password)
+			argId++
+		}
+
+		query += fmt.Sprintf(" WHERE id=$%d", argId)
+		args = append(args, id)
+
+		if _, err := db.ExecContext(context.Background(), query, args...); err != nil {
+			log.Println("updateUser basic details error:", err)
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user details"})
 		}
 	}
 	
