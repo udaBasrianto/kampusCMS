@@ -245,3 +245,18 @@
     text-wrap: balance;
   }
 }
+
+/* ─── Logo Animations ─────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { transform: translateX(-150%); }
+  60%  { transform: translateX(150%); }
+  100% { transform: translateX(150%); }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); }
+  25%       { opacity: 1; transform: scale(1.2) rotate(20deg); }
+  50%       { opacity: 0.6; transform: scale(0.9) rotate(-10deg); }
+  75%       { opacity: 1; transform: scale(1.1) rotate(15deg); }
+}
+

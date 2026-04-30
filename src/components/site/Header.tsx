@@ -42,22 +42,45 @@ export function Header() {
         )}
       >
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-6 px-5 py-3 lg:px-8">
-        <a href="/" className="flex items-center gap-3">
-          <div
-            className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-lg border-2 transition-colors",
-              scrolled ? "border-primary text-primary" : "border-primary bg-white/90 text-primary",
-            )}
-          >
-            <Landmark className="h-6 w-6" />
-          </div>
-          <div className="leading-tight">
+        <a href="/" className="flex items-center gap-3 group">
+          {/* Logo Icon dengan animasi */}
+          <div className="relative">
+            {/* Sparkle bintang 1 */}
+            <span className="absolute -top-1 -right-1 text-yellow-400 text-xs animate-[sparkle_2.5s_ease-in-out_infinite] pointer-events-none select-none">✦</span>
+            {/* Sparkle bintang 2 */}
+            <span className="absolute -bottom-1 -left-0.5 text-yellow-300 text-[8px] animate-[sparkle_2.5s_ease-in-out_0.8s_infinite] pointer-events-none select-none">✦</span>
+            {/* Sparkle bintang 3 */}
+            <span className="absolute top-0 left-0 text-primary/40 text-[7px] animate-[sparkle_2.5s_ease-in-out_1.6s_infinite] pointer-events-none select-none">✦</span>
             <div
               className={cn(
-                "font-display text-xl font-bold tracking-tight",
+                "relative flex h-11 w-11 items-center justify-center rounded-lg border-2 transition-all duration-300 overflow-hidden",
+                "group-hover:scale-110 group-hover:shadow-[0_0_16px_4px_rgba(var(--primary-rgb,59,130,246),0.35)]",
+                scrolled ? "border-primary text-primary" : "border-primary bg-white/90 text-primary",
+              )}
+            >
+              {/* Shimmer sweep */}
+              <span
+                className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_ease-in-out_infinite] pointer-events-none"
+                style={{
+                  background: "linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.7) 50%, transparent 65%)",
+                }}
+              />
+              <Landmark className="h-6 w-6 relative z-10" />
+            </div>
+          </div>
+
+          {/* Teks nama kampus */}
+          <div className="leading-tight overflow-hidden">
+            <div
+              className={cn(
+                "font-display text-xl font-bold tracking-tight relative",
                 scrolled ? "text-primary" : "text-primary",
               )}
             >
+              {/* Shimmer sweep pada teks */}
+              <span className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_ease-in-out_0.3s_infinite] pointer-events-none"
+                style={{ background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.6) 50%, transparent 70%)" }}
+              />
               {acronym}
             </div>
             <div
