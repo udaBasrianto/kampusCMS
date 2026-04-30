@@ -4,6 +4,7 @@ import { GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
+import { apiClient } from "@/integrations/api/client";
 import { login, logout } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/auth")({
@@ -21,6 +22,7 @@ function AuthPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
@@ -36,6 +38,10 @@ function AuthPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === "signup" && !fullName.trim()) {
+      toast.error("Nama lengkap wajib diisi");
+      return;
+    }
     const parsed = schema.safeParse({ email, password });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
@@ -44,7 +50,13 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        toast.error("Signup is not available. Contact admin for account creation.");
+        const { error } = await apiClient.registerUser({ email, password, full_name: fullName });
+        if (error) {
+          toast.error(error);
+        } else {
+          toast.success("Pendaftaran berhasil! Silakan hubungi admin untuk persetujuan.");
+          setMode("login");
+        }
       } else {
         const data = await login(parsed.data.email, parsed.data.password);
         toast.success("Login berhasil");
@@ -84,6 +96,18 @@ function AuthPage() {
         </p>
 
         <form onSubmit={submit} className="mt-6 space-y-4">
+          {mode === "signup" && (
+            <div>
+              <label className="text-sm font-medium">Nama Lengkap</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm"
+              />
+            </div>
+          )}
           <div>
             <label className="text-sm font-medium">Email</label>
             <input

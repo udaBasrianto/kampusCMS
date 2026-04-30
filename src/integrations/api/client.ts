@@ -172,6 +172,7 @@ export interface AppUser {
   email: string;
   full_name: string;
   role: string;
+  status?: string;
   faculty_ids?: string[];
   created_at?: string;
 }
@@ -519,6 +520,13 @@ export class ApiClient {
   // Admin - Users
   async getUsers() {
     return this.request<AppUser[]>("/admin/users");
+  }
+
+  async registerUser(data: { email: string; password: string; full_name: string }) {
+    return this.request("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
   async createUser(data: Partial<AppUser> & { password?: string }) {

@@ -30,11 +30,21 @@ function Page() {
     queryFn: async () => {
       const { data, error } = await apiClient.getUsers();
       if (error) throw new Error(error);
-      return (data as any[])?.filter((u: any) => u.role === "faculty_admin") ?? [];
+      return (data as any[])?.filter((u: any) => u.role === "faculty_admin" && u.status !== "pending" && u.status !== "rejected") ?? [];
     },
   });
 
-  const [tab, setTab] = useState<"super" | "faculty">("faculty");
+  // Pending Users (Pendaftar)
+  const pendingUsersQuery = useQuery({
+    queryKey: ["pending_users"],
+    queryFn: async () => {
+      const { data, error } = await apiClient.getUsers();
+      if (error) throw new Error(error);
+      return (data as any[])?.filter((u: any) => u.status === "pending") ?? [];
+    },
+  });
+
+  const [tab, setTab] = useState<"super" | "faculty" | "pending">("pending");
 
   // Form: add super admin
   const [superId, setSuperId] = useState("");
@@ -129,7 +139,24 @@ function Page() {
     setList(list.includes(fid) ? list.filter((x) => x !== fid) : [...list, fid]);
   };
 
+  const approveUser = async (uid: string) => {
+    if (!confirm("Setujui pendaftaran user ini? Mereka akan bisa login sebagai user biasa.")) return;
+    const { error } = await apiClient.updateUser(uid, { status: "active", faculty_ids: [] });
+    if (error) return toast.error("Gagal menyetujui: " + error);
+    toast.success("User disetujui");
+    qc.invalidateQueries({ queryKey: ["pending_users"] });
+  };
+
+  const rejectUser = async (uid: string) => {
+    if (!confirm("Tolak pendaftaran user ini?")) return;
+    const { error } = await apiClient.updateUser(uid, { status: "rejected", faculty_ids: [] });
+    if (error) return toast.error("Gagal menolak: " + error);
+    toast.success("User ditolak");
+    qc.invalidateQueries({ queryKey: ["pending_users"] });
+  };
+
   const fAdmins = facultyAdminsQuery.data ?? [];
+  const pendingUsers = pendingUsersQuery.data ?? [];
 
   return (
     <div>
@@ -141,6 +168,12 @@ function Page() {
 
       {/* Tabs */}
       <div className="mt-6 inline-flex rounded-lg border border-border bg-card p-1">
+        <button
+          onClick={() => setTab("pending")}
+          className={`rounded-md px-4 py-1.5 text-sm font-semibold ${tab === "pending" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+        >
+          Pendaftar Baru ({pendingUsersQuery.data?.length ?? 0})
+        </button>
         <button
           onClick={() => setTab("faculty")}
           className={`rounded-md px-4 py-1.5 text-sm font-semibold ${tab === "faculty" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
@@ -154,6 +187,48 @@ function Page() {
           Super Admin ({superAdmins.length})
         </button>
       </div>
+
+      {tab === "pending" && (
+        <div className="mt-6 grid gap-3">
+          <h2 className="font-display text-lg font-semibold">Menunggu Persetujuan</h2>
+          {pendingUsersQuery.isLoading && <p className="text-sm text-muted-foreground">Memuat...</p>}
+          {pendingUsers.length === 0 && !pendingUsersQuery.isLoading && (
+            <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
+              Tidak ada pendaftar baru yang menunggu persetujuan.
+            </div>
+          )}
+          {pendingUsers.map((u: any) => (
+            <div key={u.id} className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <UserPlus className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-display font-semibold truncate">{u.full_name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Mendaftar pada: {new Date(u.created_at).toLocaleString("id-ID")}
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  onClick={() => approveUser(u.id)}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  Setujui
+                </button>
+                <button
+                  onClick={() => rejectUser(u.id)}
+                  className="rounded-lg border border-input px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10"
+                >
+                  Tolak
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {tab === "faculty" && (
         <>

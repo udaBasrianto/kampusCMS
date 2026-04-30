@@ -98,14 +98,27 @@ func login(c *fiber.Ctx) error {
 
 	var user User
 	var passwordHash string
+	var status string
 	err := db.QueryRowContext(context.Background(),
-		"SELECT id, email, password_hash, full_name, role FROM users WHERE email = $1",
+		"SELECT id, email, password_hash, full_name, role, COALESCE(status, 'active') FROM users WHERE email = $1",
 		req.Email,
-	).Scan(&user.ID, &user.Email, &passwordHash, &user.FullName, &user.Role)
+	).Scan(&user.ID, &user.Email, &passwordHash, &user.FullName, &user.Role, &status)
 
 	if err != nil || !checkPassword(passwordHash, req.Password) {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid credentials",
+		})
+	}
+
+	if status == "pending" {
+		return c.Status(http.StatusForbidden).JSON(fiber.Map{
+			"error": "Akun Anda sedang menunggu persetujuan admin.",
+		})
+	}
+
+	if status == "rejected" {
+		return c.Status(http.StatusForbidden).JSON(fiber.Map{
+			"error": "Akun Anda telah ditolak.",
 		})
 	}
 
@@ -124,6 +137,50 @@ func login(c *fiber.Ctx) error {
 
 func logout(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Logged out successfully"})
+}
+
+func registerUser(c *fiber.Ctx) error {
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		FullName string `json:"full_name"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	if req.Email == "" || req.Password == "" || req.FullName == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Email, password, dan nama lengkap wajib diisi"})
+	}
+
+	if len(req.Password) < 6 {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Password minimal 6 karakter"})
+	}
+
+	hashed, err := hashPassword(req.Password)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Internal server error"})
+	}
+
+	var newID string
+	err = db.QueryRowContext(context.Background(),
+		`INSERT INTO users (email, password_hash, full_name, role, status) 
+		 VALUES ($1, $2, $3, 'user', 'pending') RETURNING id`,
+		req.Email, hashed, req.FullName,
+	).Scan(&newID)
+
+	if err != nil {
+		if strings.Contains(err.Error(), "unique constraint") {
+			return c.Status(http.StatusConflict).JSON(fiber.Map{"error": "Email sudah terdaftar"})
+		}
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal mendaftar"})
+	}
+
+	return c.Status(http.StatusCreated).JSON(fiber.Map{
+		"message": "Pendaftaran berhasil, menunggu persetujuan admin.",
+		"id":      newID,
+	})
 }
 
 func getMe(c *fiber.Ctx) error {

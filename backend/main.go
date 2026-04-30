@@ -83,6 +83,7 @@ func main() {
 func setupRoutes(api fiber.Router) {
 	// Auth routes
 	api.Post("/auth/login", login)
+	api.Post("/auth/register", registerUser)
 	api.Post("/auth/logout", logout)
 	api.Post("/auth/register-candidate", registerCandidate)
 	api.Get("/auth/me", authMiddleware, getMe)

@@ -500,7 +500,7 @@ func updateSettings(c *fiber.Ctx) error {
 
 func getUsers(c *fiber.Ctx) error {
 	rows, err := db.QueryContext(context.Background(),
-		`SELECT u.id, u.email, COALESCE(u.full_name, ''), u.role, u.created_at,
+		`SELECT u.id, u.email, COALESCE(u.full_name, ''), u.role, COALESCE(u.status, 'active'), u.created_at,
 			COALESCE(array_agg(fa.faculty_id) FILTER (WHERE fa.faculty_id IS NOT NULL), '{}') AS faculty_ids
 		FROM users u
 		LEFT JOIN faculty_admins fa ON fa.user_id = u.id
@@ -515,7 +515,7 @@ func getUsers(c *fiber.Ctx) error {
 	users := []User{}
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.CreatedAt, pq.Array(&u.FacultyIDs)); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.Status, &u.CreatedAt, pq.Array(&u.FacultyIDs)); err != nil {
 			log.Println("getUsers scan error:", err)
 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to process user data"})
 		}
@@ -574,18 +574,29 @@ func updateUser(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var req struct {
 		FacultyIDs []string `json:"faculty_ids"`
+		Status     string   `json:"status"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
-	if _, err := db.ExecContext(context.Background(), "DELETE FROM faculty_admins WHERE user_id=$1", id); err != nil {
-		log.Println("updateUser faculty cleanup error:", err)
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user"})
+	
+	if req.Status != "" {
+		if _, err := db.ExecContext(context.Background(), "UPDATE users SET status=$1 WHERE id=$2", req.Status, id); err != nil {
+			log.Println("updateUser status error:", err)
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user status"})
+		}
 	}
-	for _, facultyID := range req.FacultyIDs {
-		if _, err := db.ExecContext(context.Background(), "INSERT INTO faculty_admins (user_id, faculty_id) VALUES ($1, $2)", id, facultyID); err != nil {
-			log.Println("updateUser faculty insert error:", err)
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user faculty"})
+	
+	if req.FacultyIDs != nil {
+		if _, err := db.ExecContext(context.Background(), "DELETE FROM faculty_admins WHERE user_id=$1", id); err != nil {
+			log.Println("updateUser faculty cleanup error:", err)
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user"})
+		}
+		for _, facultyID := range req.FacultyIDs {
+			if _, err := db.ExecContext(context.Background(), "INSERT INTO faculty_admins (user_id, faculty_id) VALUES ($1, $2)", id, facultyID); err != nil {
+				log.Println("updateUser faculty insert error:", err)
+				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user faculty"})
+			}
 		}
 	}
 	return c.JSON(fiber.Map{"message": "User updated"})

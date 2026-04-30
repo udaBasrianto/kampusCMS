@@ -57,6 +57,19 @@ func initDB() {
 		log.Fatal("Failed to create site_settings table: ", err)
 	}
 
+	// Add status column to users if not exists
+	_, err = db.ExecContext(context.Background(), `
+		DO $$
+		BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='status') THEN
+				ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'active';
+			END IF;
+		END $$;
+	`)
+	if err != nil {
+		log.Println("Warning: Failed to add status column to users table:", err)
+	}
+
 	// Auto-migrate column map_coordinates for campus_events
 	_, _ = db.ExecContext(context.Background(), `ALTER TABLE campus_events ADD COLUMN IF NOT EXISTS map_coordinates VARCHAR(100)`)
 }
