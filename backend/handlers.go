@@ -585,6 +585,7 @@ func updateUser(c *fiber.Ctx) error {
 		FullName   string   `json:"full_name"`
 		Email      string   `json:"email"`
 		Password   string   `json:"password"`
+		Role       string   `json:"role"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
@@ -594,6 +595,13 @@ func updateUser(c *fiber.Ctx) error {
 		if _, err := db.ExecContext(context.Background(), "UPDATE users SET status=$1 WHERE id=$2", req.Status, id); err != nil {
 			log.Println("updateUser status error:", err)
 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user status"})
+		}
+	}
+
+	if req.Role != "" {
+		if _, err := db.ExecContext(context.Background(), "UPDATE users SET role=$1 WHERE id=$2", req.Role, id); err != nil {
+			log.Println("updateUser role error:", err)
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user role"})
 		}
 	}
 

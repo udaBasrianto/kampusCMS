@@ -198,10 +198,38 @@ function Page() {
       )
     )
       return;
-    const { error } = await apiClient.deleteUser(uid);
+    const { error } = await apiClient.updateUser(uid, { role: "user", faculty_ids: [] });
     if (error) return toast.error("Gagal mencabut akses");
     toast.success("Akses Faculty Admin dicabut");
     qc.invalidateQueries({ queryKey: ["faculty_admins_list"] });
+    qc.invalidateQueries({ queryKey: ["active_users"] });
+  };
+
+  const [promoteUserId, setPromoteUserId] = useState("");
+  const [promoteFacultyIds, setPromoteFacultyIds] = useState<string[]>([]);
+  const [promoting, setPromoting] = useState(false);
+
+  const submitPromote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!promoteUserId) return toast.error("Pilih user");
+    if (promoteFacultyIds.length === 0) return toast.error("Pilih minimal satu fakultas");
+    setPromoting(true);
+    try {
+      const { error } = await apiClient.updateUser(promoteUserId, {
+        role: "faculty_admin",
+        faculty_ids: promoteFacultyIds,
+      });
+      if (error) throw new Error(error);
+      toast.success("User berhasil dijadikan admin fakultas");
+      setPromoteUserId("");
+      setPromoteFacultyIds([]);
+      qc.invalidateQueries({ queryKey: ["active_users"] });
+      qc.invalidateQueries({ queryKey: ["faculty_admins_list"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal memperbarui role user");
+    } finally {
+      setPromoting(false);
+    }
   };
 
   const facultyMap = Object.fromEntries(faculties.map((f: any) => [f.id, f]));
@@ -451,12 +479,13 @@ function Page() {
       )}
 
       {tab === "faculty" && (
-        <>
-          {/* Form buat Faculty Admin baru */}
-          <form
-            onSubmit={submitCreate}
-            className="mt-6 rounded-2xl border border-border bg-card p-6 space-y-4"
-          >
+        <div className="grid gap-6">
+          <div className="grid sm:grid-cols-2 gap-6 mt-6">
+            {/* Form buat Faculty Admin baru */}
+            <form
+              onSubmit={submitCreate}
+              className="rounded-2xl border border-border bg-card p-6 space-y-4"
+            >
             <div>
               <h2 className="font-display text-lg font-semibold">Buat Akun Faculty Admin Baru</h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -543,6 +572,75 @@ function Page() {
               Buat Akun Faculty Admin
             </button>
           </form>
+
+          {/* Form jadikan user aktif sebagai Faculty Admin */}
+          <form
+            onSubmit={submitPromote}
+            className="rounded-2xl border border-border bg-card p-6 space-y-4"
+          >
+            <div>
+              <h2 className="font-display text-lg font-semibold">Jadikan User Sebagai Admin Fakultas</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pilih user aktif yang sudah mendaftar mandiri (atau dibuat admin) untuk diberikan hak kelola fakultas.
+              </p>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground">Pilih User Biasa</label>
+              <select
+                required
+                value={promoteUserId}
+                onChange={(e) => setPromoteUserId(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="" disabled>-- Pilih User --</option>
+                {activeUsers.map((u: any) => (
+                  <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground">
+                Tugaskan ke Fakultas (boleh lebih dari satu)
+              </label>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {faculties.map((f: any) => (
+                  <label
+                    key={f.id}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer ${promoteFacultyIds.includes(f.id) ? "border-primary bg-primary/5" : "border-border"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={promoteFacultyIds.includes(f.id)}
+                      onChange={() =>
+                        toggleFid(
+                          promoteFacultyIds,
+                          (v) => setPromoteFacultyIds(v),
+                          f.id,
+                        )
+                      }
+                    />
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-bold">
+                      {f.code}
+                    </span>
+                    <span className="truncate">{f.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={promoting || activeUsers.length === 0}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              {promoting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Shield className="h-4 w-4" />
+              )}
+              Jadikan Faculty Admin
+            </button>
+          </form>
+          </div>
 
           {/* List faculty admins */}
           <div className="mt-6 grid gap-3">
@@ -640,7 +738,7 @@ function Page() {
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {tab === "super" && (
